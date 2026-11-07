@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. SMENA (Umumiy ma'lumotlar)
+model Smena {
+  id         String    @id @default(uuid())
+  sana       String
+  smenaTuri  String    // DEN yoki NOCH
+  kontrolchi String
+  master     String
+  moshinalar Moshina[] // Bitta smenada bir nechta moshina bo'ladi
+  createdAt  DateTime  @default(now())
+}
+
+// 2. MOSHINA (ApparatCard ma'lumotlari)
+model Moshina {
+  id         String    @id @default(uuid())
+  smenaId    String
+  smena      Smena     @relation(fields: [smenaId], references: [id], onDelete: Cascade)
+  raqam      String    // Moshina nomi/raqami
+  talimoti   String?
+  brend      String?
+  ip         String?
+  lot        String?
+  operator   String?
+  operatorId String?
+  rulonlar   Rulon[]   // Bitta moshinada bir nechta rulon chiqadi
+}
+
+// 3. RULON (Sifat nazorati va KG)
+model Rulon {
+  id          String   @id @default(uuid())
+  moshinaId   String
+  moshina     Moshina  @relation(fields: [moshinaId], references: [id], onDelete: Cascade)
+  tartibRaqam Int      // Rulonning qator raqami (1, 2, 3...)
+  kg          Float?   // Rulon og'irligi
+  vaqt        String?  // Chiqqan vaqti
+  
+  // Nuqsonlar
+  patlak      String?
+  lycXato     String?
+  ignaSiniq   String?
+  yogIzi      String?
+  kumas       String?
+}

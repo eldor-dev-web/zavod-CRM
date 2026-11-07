@@ -1,0 +1,229 @@
+'use client';
+import React, { useState, useEffect } from 'react';
+import BraklarJadvali from '@/components/BraklarJadvali';
+
+export default function BraklarSahifasi() {
+  const [tanlanganOy, setTanlanganOy] = useState('');
+  
+  const [brakStavkalari, setBrakStavkalari] = useState({
+    ignaSinigi: 8000, 
+    luxXatosi: 10000   
+  });
+  
+  const [ishchilarBazasi, setIshchilarBazasi] = useState<any[]>([]);
+  const [brakMaqomlari, setBrakMaqomlari] = useState<Record<string, any>>({});
+  const [operatorIsmlari, setOperatorIsmlari] = useState<Record<string, string>>({});
+  
+  const [kunlikJadvalOchiq, setKunlikJadvalOchiq] = useState(false);
+  const [yangilanmoqda, setYangilanmoqda] = useState(false);
+
+  const filtrlashOperatorlarni = (barchaXodimlar: any[]) => {
+    let aniqLavozimNomi = 'Operator';
+    try {
+      const lavozimlar = JSON.parse(localStorage.getItem('zavod_lavozimlar_bazasi') || '[]');
+      const topilganOperator = lavozimlar.find((l: any) => String(l.nomi).toLowerCase() === 'operator');
+      if (topilganOperator) aniqLavozimNomi = topilganOperator.nomi;
+    } catch (e) { console.error(e); }
+
+    return barchaXodimlar.filter((x: any) => {
+      if (!x) return false;
+      const lavozim = String(x.lavozim || x.mutaxassislik || x.rol || '').trim();
+      const textHolati = JSON.stringify(x).toLowerCase();
+      return (lavozim === aniqLavozimNomi || lavozim.toLowerCase() === 'operator' || textHolati.includes('operat') || textHolati.includes('операт'));
+    });
+  };
+
+  const malumotlarniYuklash = (oy: string) => {
+    const xodimlarStr = localStorage.getItem(`zavod_ishchilar_${oy}`) || localStorage.getItem('zavod_ishchilar_bazasi');
+    if (xodimlarStr) {
+      try {
+        const barchaXodimlar = JSON.parse(xodimlarStr);
+        setIshchilarBazasi(filtrlashOperatorlarni(barchaXodimlar));
+      } catch (e) { setIshchilarBazasi([]); }
+    } else { setIshchilarBazasi([]); }
+
+    const saqlanganBraklar = localStorage.getItem(`zavod_brak_jadval_${oy}`);
+    if (saqlanganBraklar) {
+      try { setBrakMaqomlari(JSON.parse(saqlanganBraklar)); } catch (e) { setBrakMaqomlari({}); }
+    } else { setBrakMaqomlari({}); }
+
+    const saqlanganIsmlar = localStorage.getItem(`zavod_brak_ismlar_${oy}`);
+    if (saqlanganIsmlar) {
+      try { setOperatorIsmlari(JSON.parse(saqlanganIsmlar)); } catch (e) { setOperatorIsmlari({}); }
+    } else { setOperatorIsmlari({}); }
+  };
+
+  useEffect(() => {
+    const saqlanganOy = localStorage.getItem('zavod_joriy_hisobot_oyi');
+    const hozirgiOy = saqlanganOy || new Date().toISOString().slice(0, 7);
+    setTanlanganOy(hozirgiOy);
+
+    const saqlanganNarxlar = localStorage.getItem('zavod_brak_stavkalari');
+    if (saqlanganNarxlar) {
+      try { setBrakStavkalari(JSON.parse(saqlanganNarxlar)); } catch (e) {}
+    }
+
+    malumotlarniYuklash(hozirgiOy);
+  }, []);
+
+  const oyniOzgartirish = (yangiOy: string) => {
+    setTanlanganOy(yangiOy);
+    localStorage.setItem('zavod_joriy_hisobot_oyi', yangiOy);
+    malumotlarniYuklash(yangiOy);
+  };
+
+  const bazaniSinxronlash = () => {
+    setYangilanmoqda(true);
+    const saqlanganNarxlar = localStorage.getItem('zavod_brak_stavkalari');
+    if (saqlanganNarxlar) {
+      try { setBrakStavkalari(JSON.parse(saqlanganNarxlar)); } catch (e) {}
+    }
+
+    setTimeout(() => {
+      malumotlarniYuklash(tanlanganOy);
+      setYangilanmoqda(false);
+    }, 600);
+  };
+
+  const getOyKunlariSoni = () => {
+    if (!tanlanganOy) return 30;
+    const [yil, oy] = tanlanganOy.split('-').map(Number);
+    return new Date(yil, oy, 0).getDate();
+  };
+
+  const kunlarMassivi = Array.from({ length: getOyKunlariSoni() }, (_, i) => i + 1);
+
+  const qiymatniOzgartirish = (ishchiId: any, kun: number, field: 'igna' | 'lux', val: any) => {
+    const kalit = `${ishchiId}_${kun}`;
+    const current = brakMaqomlari[kalit] || { igna: '', lux: '' };
+    const numVal = val === '' ? '' : Number(val.replace(/\D/g, ''));
+    const updated = { ...brakMaqomlari, [kalit]: { igna: current.igna ?? '', lux: current.lux ?? '', [field]: numVal } };
+    setBrakMaqomlari(updated);
+    localStorage.setItem(`zavod_brak_jadval_${tanlanganOy}`, JSON.stringify(updated));
+  };
+
+  const operatorIsminiOzgartirish = (ishchiId: any, yangiIsm: string) => {
+    const updated = { ...operatorIsmlari, [ishchiId]: yangiIsm };
+    setOperatorIsmlari(updated);
+    localStorage.setItem(`zavod_brak_ismlar_${tanlanganOy}`, JSON.stringify(updated));
+  };
+
+  const operatorBrakHisobi = (ishchiId: any) => {
+    let jamiIgna = 0, jamiLux = 0;
+    kunlarMassivi.forEach(kun => {
+      const data = brakMaqomlari[`${ishchiId}_${kun}`];
+      if (data) {
+        if (data.igna !== '' && data.igna !== undefined && !isNaN(Number(data.igna))) jamiIgna += Number(data.igna);
+        if (data.lux !== '' && data.lux !== undefined && !isNaN(Number(data.lux))) jamiLux += Number(data.lux);
+      }
+    });
+    const summa = (jamiIgna * brakStavkalari.ignaSinigi) + (jamiLux * brakStavkalari.luxXatosi);
+    return { jamiIgna, jamiLux, summa };
+  };
+
+  const brakBorOperatorlar = ishchilarBazasi.map(ishchi => {
+    const hisob = operatorBrakHisobi(ishchi.id);
+    const customIsm = operatorIsmlari[ishchi.id] !== undefined ? operatorIsmlari[ishchi.id] : ishchi.ism;
+    return { ...ishchi, ...hisob, ism: customIsm };
+  }).filter(item => item.jamiIgna > 0 || item.jamiLux > 0);
+
+  // 2 marta aylanib ketmasligi uchun alohida hisoblaymiz:
+  const umumiyIgnaMetr = brakBorOperatorlar.reduce((sum, item) => sum + item.jamiIgna, 0);
+  const umumiyLuxMetr = brakBorOperatorlar.reduce((sum, item) => sum + item.jamiLux, 0);
+  const umumiyJarimaSummasi = brakBorOperatorlar.reduce((sum, item) => sum + item.summa, 0);
+
+  return (
+    <div className="p-3 sm:p-6 max-w-[100vw] mx-auto font-sans bg-slate-50 min-h-screen">
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Operatorlar Brak va Xatolar Hisobi</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={bazaniSinxronlash} disabled={yangilanmoqda} className={`px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold transition-all shadow-2xs ${yangilanmoqda ? 'bg-slate-100 text-slate-400' : 'bg-white text-slate-700 hover:bg-slate-50 hover:border-blue-400'}`}>
+            {yangilanmoqda ? '⏳ Yangilanmoqda...' : '🔄 Bazani Yangilash'}
+          </button>
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Hisobot Oyi</label>
+            <input type="month" value={tanlanganOy} onChange={(e) => oyniOzgartirish(e.target.value)} className="border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 bg-slate-50 focus:bg-white focus:border-blue-600 outline-none transition-all shadow-2xs" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden mb-6">
+        <div className="p-5 bg-slate-100/80 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <span>📊</span> {tanlanganOy} Oyi Boʻyicha Umumiy Oylik Jarima Hisoboti
+            </h3>
+          </div>
+          <button type="button" onClick={() => setKunlikJadvalOchiq(!kunlikJadvalOchiq)} className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-2xs flex items-center gap-2 ${kunlikJadvalOchiq ? 'bg-slate-800 text-white hover:bg-slate-900' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+            <span>{kunlikJadvalOchiq ? '📂 Kunlik Jadvalni Yopish' : '🔍 Kunlik Tafsilotlarni Koʻrish'}</span>
+            <span className="text-base">{kunlikJadvalOchiq ? '▲' : '▼'}</span>
+          </button>
+        </div>
+
+        {brakBorOperatorlar.length === 0 ? (
+          <div className="text-center py-10 text-slate-400 text-xs font-semibold">
+            Hozircha tanlangan oyda hech qaysi operatorga brak kiritilmadi.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase font-black text-slate-500">
+                  <th className="p-3.5 text-center w-16 border-r border-slate-200">№</th>
+                  <th className="p-3.5 border-r border-slate-200">Operator F.I.Sh.</th>
+                  <th className="p-3.5 text-center border-r border-slate-200 w-48">Jami Igna Sinigʻi (Metr)</th>
+                  <th className="p-3.5 text-center border-r border-slate-200 w-48">Jami Lux Xatosi (Metr)</th>
+                  <th className="p-3.5 text-right w-56 bg-red-50/50">Oylikdan Ushlanadi (Jarima)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm font-semibold text-slate-800">
+                {brakBorOperatorlar.map((item, idx) => {
+                  
+
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3.5 text-center font-bold text-slate-400 border-r border-slate-200 bg-slate-50/30">{idx + 1}</td>
+                      <td className="p-3.5 font-bold border-r border-slate-200 text-slate-900">👤 {item.ism}</td>
+                      <td className="p-3.5 text-center border-r border-slate-200 text-red-600 font-black">{item.jamiIgna > 0 ? `${item.jamiIgna} metr` : '-'}</td>
+                      <td className="p-3.5 text-center border-r border-slate-200 text-blue-600 font-black">{item.jamiLux > 0 ? `${item.jamiLux} metr` : '-'}</td>
+                      <td className="p-3.5 text-right font-black text-red-600 bg-red-50/20 text-base">{item.summa.toLocaleString()} so'm</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {kunlikJadvalOchiq && (
+        <BraklarJadvali 
+          kunlarMassivi={kunlarMassivi}
+          ishchilarBazasi={ishchilarBazasi}
+          brakMaqomlari={brakMaqomlari}
+          operatorIsmlari={operatorIsmlari}
+          qiymatniOzgartirish={qiymatniOzgartirish}
+          operatorIsminiOzgartirish={operatorIsminiOzgartirish}
+          operatorBrakHisobi={operatorBrakHisobi}
+          setKunlikJadvalOchiq={setKunlikJadvalOchiq}
+        />
+      )}
+
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <p className="text-xs font-bold text-slate-400 uppercase">Tanlangan oy umumiy brak ko'rsatkichi:</p>
+          <p className="text-sm font-semibold text-slate-800 mt-1">
+            Jami Igna sinigʻi: <strong className="text-red-600">{umumiyIgnaMetr} metr</strong> | Jami Lux xatosi: <strong className="text-blue-600">{umumiyLuxMetr} metr</strong>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-4 text-sm font-black">
+          <div className="bg-red-50 border border-red-200 px-5 py-3 rounded-xl text-red-900 shadow-2xs">
+            🚨 Umumiy Jami Jarima Summasi: <span className="text-red-600 ml-1">{umumiyJarimaSummasi.toLocaleString()} so'm</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
