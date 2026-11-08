@@ -50,18 +50,26 @@ export default function AsosiyPanelSahifasi() {
       let jamiKun = 0, jamiMoshina = 0, ishchiIgna = 0, ishchiLux = 0;
       for (let i = 1; i <= 31; i++) {
         const d = davomat[`${ishchi.id}_${oy}_${i}`];
-        if (d && d.status === '+') jamiKun += 1;
-        if (d && d.moshina !== '' && !isNaN(Number(d.moshina))) jamiMoshina += Number(d.moshina);
+        // 🚀 TO'G'RILANDI: Davomat holatini aniqroq tekshirish
+        if (d && (d.status === '+' || d.holat === '+' || d === '+')) jamiKun += 1;
+        if (d && d.moshina !== '' && d.moshina != null && !isNaN(Number(d.moshina))) jamiMoshina += Number(d.moshina);
+        
         const b = brakJadvali[`${ishchi.id}_${i}`];
         if (b) { ishchiIgna += Number(b.igna || 0); ishchiLux += Number(b.lux || 0); }
       }
-      const lavozimNomi = String(ishchi.lavozimi || '');
-      const topildi = lavozimlar.find((l: any) => l.nomi === lavozimNomi || String(l.nomi).toLowerCase() === lavozimNomi.toLowerCase());
-      const stavka = topildi ? Number(topildi.stavka) || 0 : 0;
-      const isOperator = lavozimNomi.toLowerCase().includes('operator');
+
+      // 🚀 TO'G'RILANDI: Lavozim nomi va stavkani qidirish mantiqini universal qildik
+      const lavozimNomi = String(ishchi.lavozim || ishchi.mutaxassislik || ishchi.rol || ishchi.lavozimi || '').trim();
+      const topildi = lavozimlar.find((l: any) => l.nomi && String(l.nomi).toLowerCase().trim() === lavozimNomi.toLowerCase());
+      
+      // Agar ishchining obyektida 'stavka' saqlangan bo'lsa o'shani, yo'qsa lavozim bazasidagini oladi
+      const stavka = Number(ishchi.stavka || (topildi ? topildi.stavka : 0)) || 0;
+      const isOperator = lavozimNomi.toLowerCase().includes('operat');
+      
       const asosiyOylik = jamiKun * stavka;
       const qoshimchaMoshinaOyligi = isOperator ? (jamiMoshina * opQoshimcha) : 0;
-      tempOylik += asosiyOylik + qoshimchaMoshinaOyligi;
+      
+      tempOylik += (asosiyOylik + qoshimchaMoshinaOyligi);
       tempIgna += ishchiIgna; tempLux += ishchiLux;
 
       if (jamiKun > maxKun) { maxKun = jamiKun; bestWorker = ishchi.ism; }
@@ -70,6 +78,7 @@ export default function AsosiyPanelSahifasi() {
     });
 
     const tempJarima = (tempIgna * brakStavkalari.ignaSinigi) + (tempLux * brakStavkalari.luxXatosi);
+    
     const bugunSanaStr = new Date().toISOString().split('T')[0];
     const kechaDate = new Date(); kechaDate.setDate(kechaDate.getDate() - 1);
     const kechaSanaStr = kechaDate.toISOString().split('T')[0];
@@ -113,19 +122,26 @@ export default function AsosiyPanelSahifasi() {
     }
 
     setStatistika({
-      jamiOylik: tempOylik, jamiJarima: tempJarima, jamiIgnaMetr: tempIgna, jamiLuxMetr: tempLux,
-      faolIshchilarSoni: noyobIshchilar.length, kechagiSana: kechaKorsatish, kechagiDenKg: Number(y_kechaDenKg.toFixed(2)),
-      kechagiNochKg: Number(y_kechaNochKg.toFixed(2)), bugungiDenKg: Number(y_bugunDenKg.toFixed(2)),
-      qahramon: { ism: bestWorker, kun: maxKun }, qoidabuzar: { ism: worstWorker, brakMetr: maxBrak },
-      grafikData: grafikDataArr, grafikMaxKg: grafikEngKopKg || 1
+      jamiOylik: tempOylik, 
+      jamiJarima: tempJarima, 
+      jamiIgnaMetr: tempIgna, 
+      jamiLuxMetr: tempLux,
+      faolIshchilarSoni: noyobIshchilar.length, 
+      kechagiSana: kechaKorsatish, 
+      kechagiDenKg: Number(y_kechaDenKg.toFixed(2)),
+      kechagiNochKg: Number(y_kechaNochKg.toFixed(2)), 
+      bugungiDenKg: Number(y_bugunDenKg.toFixed(2)),
+      qahramon: { ism: bestWorker, kun: maxKun }, 
+      qoidabuzar: { ism: worstWorker, brakMetr: maxBrak },
+      grafikData: grafikDataArr, 
+      grafikMaxKg: grafikEngKopKg || 1
     });
   };
 
   return (
-    // Eng tashqi xoshiyalar olib tashlandi: w-full va p-0 (faqat kompyuterda p-8)
     <div className="w-full font-sans bg-[#F8FAFC] min-h-screen text-slate-800 pb-10 sm:p-8">
       
-      {/* HEADER - Chekkarog'iga ozgina bo'shliq qo'shildi (matn ekranga taqalib qolmasligi uchun) */}
+      {/* HEADER */}
       <div className="flex flex-row justify-between items-center px-4 pt-5 sm:px-0 sm:pt-0 mb-4 sm:mb-6 gap-2">
         <div className="pt-2 md:pt-0">
           <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-none">Dashboard</h1>
@@ -139,7 +155,7 @@ export default function AsosiyPanelSahifasi() {
         </div>
       </div>
 
-      {/* METRICS GRID - px-3 orqali ekran bo'ylab yoyiladi */}
+      {/* METRICS GRID */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6 px-3 sm:px-0 mb-4 sm:mb-6">
         
         <div className="bg-white rounded-xl sm:rounded-3xl p-3 sm:p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
