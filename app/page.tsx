@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 
-// --- PREMIUM SVG IKONALAR ---
 const Icons = {
   Wallet: () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 sm:w-6 sm:h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>,
   Alert: () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 sm:w-6 sm:h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>,
@@ -18,15 +17,19 @@ export default function AsosiyPanelSahifasi() {
   
   const [statistika, setStatistika] = useState({
     jamiOylik: 0, jamiJarima: 0, jamiIgnaMetr: 0, jamiLuxMetr: 0, faolIshchilarSoni: 0,
-    kechagiSana: '', kechagiDenKg: 0, kechagiNochKg: 0, bugungiDenKg: 0, 
+    kechagiSana: '', kechagiDenKg: 0, kechagiNochKg: 0, bugungiJamiKg: 0, 
     qahramon: { ism: '-', kun: 0 }, qoidabuzar: { ism: '-', brakMetr: 0 },
     grafikData: [] as { oyKodi: string, oyNomi: string, jamiKg: number }[],
     grafikMaxKg: 0
   });
 
   useEffect(() => {
-    const hozirgiOy = new Date().toISOString().slice(0, 7);
-    setTanlanganOy(hozirgiOy); malumotlarniAnalizQilish(hozirgiOy);
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hozirgiOy = `${yyyy}-${mm}`;
+    setTanlanganOy(hozirgiOy); 
+    malumotlarniAnalizQilish(hozirgiOy);
   }, []);
 
   const malumotlarniAnalizQilish = (oy: string) => {
@@ -37,7 +40,6 @@ export default function AsosiyPanelSahifasi() {
     const opQoshimcha = saqlanganQoshimcha !== null ? Number(saqlanganQoshimcha) : 20000;
     const brakStavkalari = JSON.parse(localStorage.getItem('zavod_brak_stavkalari') || '{"ignaSinigi":8000,"luxXatosi":10000}');
     const brakJadvali = JSON.parse(localStorage.getItem(`zavod_brak_jadval_${oy}`) || '{}');
-    const arxivSmenalar = JSON.parse(localStorage.getItem('zavod_smena_arxivlari') || '[]');
 
     let tempOylik = 0, tempIgna = 0, tempLux = 0, maxKun = 0, bestWorker = '-', maxBrak = 0, worstWorker = '-';
     
@@ -50,26 +52,18 @@ export default function AsosiyPanelSahifasi() {
       let jamiKun = 0, jamiMoshina = 0, ishchiIgna = 0, ishchiLux = 0;
       for (let i = 1; i <= 31; i++) {
         const d = davomat[`${ishchi.id}_${oy}_${i}`];
-        // 🚀 TO'G'RILANDI: Davomat holatini aniqroq tekshirish
         if (d && (d.status === '+' || d.holat === '+' || d === '+')) jamiKun += 1;
         if (d && d.moshina !== '' && d.moshina != null && !isNaN(Number(d.moshina))) jamiMoshina += Number(d.moshina);
-        
         const b = brakJadvali[`${ishchi.id}_${i}`];
         if (b) { ishchiIgna += Number(b.igna || 0); ishchiLux += Number(b.lux || 0); }
       }
 
-      // 🚀 TO'G'RILANDI: Lavozim nomi va stavkani qidirish mantiqini universal qildik
       const lavozimNomi = String(ishchi.lavozim || ishchi.mutaxassislik || ishchi.rol || ishchi.lavozimi || '').trim();
       const topildi = lavozimlar.find((l: any) => l.nomi && String(l.nomi).toLowerCase().trim() === lavozimNomi.toLowerCase());
-      
-      // Agar ishchining obyektida 'stavka' saqlangan bo'lsa o'shani, yo'qsa lavozim bazasidagini oladi
       const stavka = Number(ishchi.stavka || (topildi ? topildi.stavka : 0)) || 0;
-      const isOperator = lavozimNomi.toLowerCase().includes('operat');
+      const isOperator = lavozimNomi.toLowerCase().includes('operator');
       
-      const asosiyOylik = jamiKun * stavka;
-      const qoshimchaMoshinaOyligi = isOperator ? (jamiMoshina * opQoshimcha) : 0;
-      
-      tempOylik += (asosiyOylik + qoshimchaMoshinaOyligi);
+      tempOylik += ((jamiKun * stavka) + (isOperator ? (jamiMoshina * opQoshimcha) : 0));
       tempIgna += ishchiIgna; tempLux += ishchiLux;
 
       if (jamiKun > maxKun) { maxKun = jamiKun; bestWorker = ishchi.ism; }
@@ -79,14 +73,19 @@ export default function AsosiyPanelSahifasi() {
 
     const tempJarima = (tempIgna * brakStavkalari.ignaSinigi) + (tempLux * brakStavkalari.luxXatosi);
     
-    const bugunSanaStr = new Date().toISOString().split('T')[0];
-    const kechaDate = new Date(); kechaDate.setDate(kechaDate.getDate() - 1);
-    const kechaSanaStr = kechaDate.toISOString().split('T')[0];
+    const hozir = new Date();
+    const bugunSanaStr = `${hozir.getFullYear()}-${String(hozir.getMonth() + 1).padStart(2, '0')}-${String(hozir.getDate()).padStart(2, '0')}`;
+    
+    const kechaDate = new Date();
+    kechaDate.setDate(kechaDate.getDate() - 1);
+    const kechaSanaStr = `${kechaDate.getFullYear()}-${String(kechaDate.getMonth() + 1).padStart(2, '0')}-${String(kechaDate.getDate()).padStart(2, '0')}`;
     const kechaKorsatish = `${String(kechaDate.getDate()).padStart(2, '0')}.${String(kechaDate.getMonth() + 1).padStart(2, '0')}`;
 
-    let y_kechaDenKg = 0, y_kechaNochKg = 0, y_bugunDenKg = 0;
+    let y_kechaDenKg = 0, y_kechaNochKg = 0, y_bugunJamiKg = 0;
     const yillikOylar: Record<string, number> = {};
 
+    // 1. YOPILGAN (ARXIV) JADVALLAR
+    const arxivSmenalar = JSON.parse(localStorage.getItem('zavod_smena_arxivlari') || '[]');
     arxivSmenalar.forEach((smena: any) => {
       let smenaKg = 0;
       if (smena.moshinaTafsilotlari) {
@@ -99,21 +98,57 @@ export default function AsosiyPanelSahifasi() {
           }
         });
       }
-      if (smena.sana === kechaSanaStr) {
-        if (smena.smena.includes('DEN')) y_kechaDenKg += smenaKg;
-        if (smena.smena.includes('NOCH')) y_kechaNochKg += smenaKg;
+      
+      const sSana = smena.sana || '';
+      const sSmena = smena.smena || '';
+      if (sSana === kechaSanaStr) {
+        if (sSmena.includes('DEN')) y_kechaDenKg += smenaKg;
+        if (sSmena.includes('NOCH')) y_kechaNochKg += smenaKg;
       }
-      if (smena.sana === bugunSanaStr && smena.smena.includes('DEN')) y_bugunDenKg += smenaKg;
-      if (smena.sana) {
-        const smenaOyi = smena.sana.slice(0, 7);
+      if (sSana === bugunSanaStr) y_bugunJamiKg += smenaKg; 
+      
+      if (sSana) {
+        const smenaOyi = sSana.slice(0, 7);
         yillikOylar[smenaOyi] = (yillikOylar[smenaOyi] || 0) + smenaKg;
       }
     });
+
+    // 2. YOPILMAGAN (AKTIV) JADVALLAR (Eskirgan jadvallardan ximoya qilingan)
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('zavod_moshina_data_') || key === 'moshinaMaqotlari')) {
+        try {
+          const rawData = localStorage.getItem(key) || '';
+          if (rawData.includes('"rulonlar"')) {
+             let mKg = 0;
+             const regex = /"kg"\s*:\s*"?([0-9.,]+)"?/g;
+             let match;
+             while ((match = regex.exec(rawData)) !== null) {
+                const kNum = parseFloat(match[1].replace(',', '.'));
+                if (!isNaN(kNum)) mKg += kNum;
+             }
+             
+             // Faqat KECHAGI yoki BUGUNGI sanani o'z ichiga olgan aktiv bazanigina hisoblaydi!
+             if (key.includes(kechaSanaStr)) {
+                if (key.includes('DEN')) y_kechaDenKg += mKg;
+                if (key.includes('NOCH')) y_kechaNochKg += mKg;
+             } else if (key.includes(bugunSanaStr) || key === 'moshinaMaqotlari') {
+                y_bugunJamiKg += mKg;
+             }
+             
+             const matchDate = key.match(/20\d{2}-\d{2}/);
+             const activeMonth = matchDate ? matchDate[0] : (new Date().toISOString().slice(0,7));
+             yillikOylar[activeMonth] = (yillikOylar[activeMonth] || 0) + mKg;
+          }
+        } catch (e) { console.error(e); }
+      }
+    }
 
     const oyNomlari = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"];
     const grafikDataArr: { oyKodi: string, oyNomi: string, jamiKg: number }[] = [];
     let grafikEngKopKg = 0;
     const joriyYil = oy.split('-')[0];
+    
     for (let i = 1; i <= 12; i++) {
       const oyKodi = `${joriyYil}-${String(i).padStart(2, '0')}`;
       const oylikHajm = yillikOylar[oyKodi] || 0;
@@ -122,26 +157,16 @@ export default function AsosiyPanelSahifasi() {
     }
 
     setStatistika({
-      jamiOylik: tempOylik, 
-      jamiJarima: tempJarima, 
-      jamiIgnaMetr: tempIgna, 
-      jamiLuxMetr: tempLux,
-      faolIshchilarSoni: noyobIshchilar.length, 
-      kechagiSana: kechaKorsatish, 
-      kechagiDenKg: Number(y_kechaDenKg.toFixed(2)),
-      kechagiNochKg: Number(y_kechaNochKg.toFixed(2)), 
-      bugungiDenKg: Number(y_bugunDenKg.toFixed(2)),
-      qahramon: { ism: bestWorker, kun: maxKun }, 
-      qoidabuzar: { ism: worstWorker, brakMetr: maxBrak },
-      grafikData: grafikDataArr, 
-      grafikMaxKg: grafikEngKopKg || 1
+      jamiOylik: tempOylik, jamiJarima: tempJarima, jamiIgnaMetr: tempIgna, jamiLuxMetr: tempLux,
+      faolIshchilarSoni: noyobIshchilar.length, kechagiSana: kechaKorsatish, 
+      kechagiDenKg: y_kechaDenKg, kechagiNochKg: y_kechaNochKg, bugungiJamiKg: y_bugunJamiKg,
+      qahramon: { ism: bestWorker, kun: maxKun }, qoidabuzar: { ism: worstWorker, brakMetr: maxBrak },
+      grafikData: grafikDataArr, grafikMaxKg: grafikEngKopKg || 1
     });
   };
 
   return (
     <div className="w-full font-sans bg-[#F8FAFC] min-h-screen text-slate-800 pb-10 sm:p-8">
-      
-      {/* HEADER */}
       <div className="flex flex-row justify-between items-center px-4 pt-5 sm:px-0 sm:pt-0 mb-4 sm:mb-6 gap-2">
         <div className="pt-2 md:pt-0">
           <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-none">Dashboard</h1>
@@ -155,7 +180,6 @@ export default function AsosiyPanelSahifasi() {
         </div>
       </div>
 
-      {/* METRICS GRID */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6 px-3 sm:px-0 mb-4 sm:mb-6">
         
         <div className="bg-white rounded-xl sm:rounded-3xl p-3 sm:p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
@@ -165,7 +189,7 @@ export default function AsosiyPanelSahifasi() {
           <div>
             <p className="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">Xarajatlar</p>
             <h2 className="text-base sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-              {statistika.jamiOylik > 1000000 ? (statistika.jamiOylik / 1000000).toFixed(1) + 'M' : statistika.jamiOylik.toLocaleString()} 
+              {statistika.jamiOylik.toLocaleString('ru-RU')} 
               <span className="text-[10px] sm:text-base font-semibold text-slate-400 ml-1">UZS</span>
             </h2>
           </div>
@@ -178,7 +202,7 @@ export default function AsosiyPanelSahifasi() {
           <div>
             <p className="text-[9px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">Jarimalar</p>
             <h2 className="text-base sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-              {statistika.jamiJarima > 1000000 ? (statistika.jamiJarima / 1000000).toFixed(1) + 'M' : statistika.jamiJarima.toLocaleString()} 
+              {statistika.jamiJarima.toLocaleString('ru-RU')} 
               <span className="text-[10px] sm:text-base font-semibold text-slate-400 ml-1">UZS</span>
             </h2>
           </div>
@@ -196,7 +220,6 @@ export default function AsosiyPanelSahifasi() {
           </div>
         </div>
 
-        {/* MAHSULOT - DARK MODE CARD */}
         <div className="bg-slate-900 rounded-xl sm:rounded-3xl p-3 sm:p-6 shadow-md flex flex-col justify-between text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl"></div>
           <div className="flex justify-between items-center mb-3 sm:mb-4 relative z-10">
@@ -206,15 +229,15 @@ export default function AsosiyPanelSahifasi() {
           <div className="space-y-1.5 sm:space-y-3 relative z-10 w-full">
             <div className="flex justify-between items-end border-b border-slate-700/50 pb-1 sm:pb-2">
               <span className="text-[9px] sm:text-[11px] font-semibold text-slate-400">DEN <span className="opacity-60 hidden sm:inline">({statistika.kechagiSana})</span></span>
-              <span className="text-sm sm:text-lg font-bold">{statistika.kechagiDenKg} <span className="text-[8px] sm:text-[10px] font-normal text-slate-500">kg</span></span>
+              <span className="text-sm sm:text-lg font-bold">{statistika.kechagiDenKg.toLocaleString('ru-RU')} <span className="text-[8px] sm:text-[10px] font-normal text-slate-500">kg</span></span>
             </div>
             <div className="flex justify-between items-end border-b border-slate-700/50 pb-1 sm:pb-2">
               <span className="text-[9px] sm:text-[11px] font-semibold text-slate-400">NOCH</span>
-              <span className="text-sm sm:text-lg font-bold">{statistika.kechagiNochKg} <span className="text-[8px] sm:text-[10px] font-normal text-slate-500">kg</span></span>
+              <span className="text-sm sm:text-lg font-bold">{statistika.kechagiNochKg.toLocaleString('ru-RU')} <span className="text-[8px] sm:text-[10px] font-normal text-slate-500">kg</span></span>
             </div>
             <div className="flex justify-between items-end pt-0.5 sm:pt-1">
               <span className="text-[9px] sm:text-[11px] font-semibold text-amber-400/80">BUGUN</span>
-              <span className="text-sm sm:text-lg font-bold text-amber-400">{statistika.bugungiDenKg} <span className="text-[8px] sm:text-[10px] font-normal text-amber-400/50">kg</span></span>
+              <span className="text-sm sm:text-lg font-bold text-amber-400">{statistika.bugungiJamiKg.toLocaleString('ru-RU')} <span className="text-[8px] sm:text-[10px] font-normal text-amber-400/50">kg</span></span>
             </div>
           </div>
         </div>
@@ -223,7 +246,6 @@ export default function AsosiyPanelSahifasi() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-6 px-3 sm:px-0">
         
-        {/* CHART SECTION */}
         <div className="lg:col-span-2 bg-white rounded-xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-100 flex flex-col overflow-x-auto custom-scrollbar">
           <div className="flex justify-between items-center mb-4 sm:mb-8 min-w-[300px]">
             <div>
@@ -260,10 +282,8 @@ export default function AsosiyPanelSahifasi() {
           </div>
         </div>
 
-        {/* STATS & RATINGS */}
         <div className="lg:col-span-1 flex flex-col gap-2 sm:gap-6">
           
-          {/* QUALITY (BRAK) */}
           <div className="bg-white rounded-xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-100">
             <h3 className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 sm:mb-6">Sifat Nazorati (Brak)</h3>
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-4">
@@ -284,7 +304,6 @@ export default function AsosiyPanelSahifasi() {
             </div>
           </div>
 
-          {/* LIDERLAR GRID */}
           <div className="grid grid-cols-2 gap-2 sm:gap-4 flex-grow">
             <div className="bg-indigo-600 rounded-xl sm:rounded-3xl p-3 sm:p-5 shadow-sm text-white flex flex-col justify-center items-center text-center relative overflow-hidden">
               <div className="absolute -right-2 -bottom-2 sm:-right-4 sm:-bottom-4 opacity-10"><Icons.Trophy /></div>
