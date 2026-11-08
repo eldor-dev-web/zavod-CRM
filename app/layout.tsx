@@ -19,7 +19,7 @@ export default function RootLayout({
         <Sidebar />
         
         {/* O'ng tomonda asosiy oyna */}
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 p-0 md:p-8 overflow-y-auto bg-[#F8FAFC]">
           {children}
         </main>
       </body>
