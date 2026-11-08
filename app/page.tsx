@@ -33,10 +33,8 @@ export default function AsosiyPanelSahifasi() {
     const ishchilar = JSON.parse(localStorage.getItem(`zavod_ishchilar_${oy}`) || '[]');
     const davomat = JSON.parse(localStorage.getItem('zavod_xodim_davomati') || '{}');
     const lavozimlar = JSON.parse(localStorage.getItem('zavod_lavozimlar_bazasi') || '[]');
-    
     const saqlanganQoshimcha = localStorage.getItem('zavod_operator_qoshimcha');
     const opQoshimcha = saqlanganQoshimcha !== null ? Number(saqlanganQoshimcha) : 20000;
-    
     const brakStavkalari = JSON.parse(localStorage.getItem('zavod_brak_stavkalari') || '{"ignaSinigi":8000,"luxXatosi":10000}');
     const brakJadvali = JSON.parse(localStorage.getItem(`zavod_brak_jadval_${oy}`) || '{}');
     const arxivSmenalar = JSON.parse(localStorage.getItem('zavod_smena_arxivlari') || '[]');
@@ -54,20 +52,16 @@ export default function AsosiyPanelSahifasi() {
         const d = davomat[`${ishchi.id}_${oy}_${i}`];
         if (d && d.status === '+') jamiKun += 1;
         if (d && d.moshina !== '' && !isNaN(Number(d.moshina))) jamiMoshina += Number(d.moshina);
-        
         const b = brakJadvali[`${ishchi.id}_${i}`];
         if (b) { ishchiIgna += Number(b.igna || 0); ishchiLux += Number(b.lux || 0); }
       }
-
       const lavozimNomi = String(ishchi.lavozimi || '');
       const topildi = lavozimlar.find((l: any) => l.nomi === lavozimNomi || String(l.nomi).toLowerCase() === lavozimNomi.toLowerCase());
       const stavka = topildi ? Number(topildi.stavka) || 0 : 0;
       const isOperator = lavozimNomi.toLowerCase().includes('operator');
-      
       const asosiyOylik = jamiKun * stavka;
       const qoshimchaMoshinaOyligi = isOperator ? (jamiMoshina * opQoshimcha) : 0;
       tempOylik += asosiyOylik + qoshimchaMoshinaOyligi;
-      
       tempIgna += ishchiIgna; tempLux += ishchiLux;
 
       if (jamiKun > maxKun) { maxKun = jamiKun; bestWorker = ishchi.ism; }
@@ -76,8 +70,6 @@ export default function AsosiyPanelSahifasi() {
     });
 
     const tempJarima = (tempIgna * brakStavkalari.ignaSinigi) + (tempLux * brakStavkalari.luxXatosi);
-    const sofOylik = tempOylik > tempJarima ? tempOylik - tempJarima : 0;
-
     const bugunSanaStr = new Date().toISOString().split('T')[0];
     const kechaDate = new Date(); kechaDate.setDate(kechaDate.getDate() - 1);
     const kechaSanaStr = kechaDate.toISOString().split('T')[0];
@@ -103,7 +95,6 @@ export default function AsosiyPanelSahifasi() {
         if (smena.smena.includes('NOCH')) y_kechaNochKg += smenaKg;
       }
       if (smena.sana === bugunSanaStr && smena.smena.includes('DEN')) y_bugunDenKg += smenaKg;
-      
       if (smena.sana) {
         const smenaOyi = smena.sana.slice(0, 7);
         yillikOylar[smenaOyi] = (yillikOylar[smenaOyi] || 0) + smenaKg;
@@ -114,7 +105,6 @@ export default function AsosiyPanelSahifasi() {
     const grafikDataArr: { oyKodi: string, oyNomi: string, jamiKg: number }[] = [];
     let grafikEngKopKg = 0;
     const joriyYil = oy.split('-')[0];
-    
     for (let i = 1; i <= 12; i++) {
       const oyKodi = `${joriyYil}-${String(i).padStart(2, '0')}`;
       const oylikHajm = yillikOylar[oyKodi] || 0;
@@ -132,15 +122,16 @@ export default function AsosiyPanelSahifasi() {
   };
 
   return (
-    <div className="p-3 sm:p-8 w-full mx-auto font-sans bg-[#F8FAFC] min-h-screen text-slate-800">
+    // Eng tashqi xoshiyalar olib tashlandi: w-full va p-0 (faqat kompyuterda p-8)
+    <div className="w-full font-sans bg-[#F8FAFC] min-h-screen text-slate-800 pb-10 sm:p-8">
       
-      {/* HEADER - Mobilga moslashgan yonma-yon holat */}
-      <div className="flex flex-row justify-between items-center mb-6 gap-2">
+      {/* HEADER - Chekkarog'iga ozgina bo'shliq qo'shildi (matn ekranga taqalib qolmasligi uchun) */}
+      <div className="flex flex-row justify-between items-center px-4 pt-5 sm:px-0 sm:pt-0 mb-4 sm:mb-6 gap-2">
         <div className="pt-2 md:pt-0">
           <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-none">Dashboard</h1>
           <p className="text-[10px] sm:text-sm text-slate-500 mt-1 hidden sm:block">Umumiy ishlab chiqarish va moliya tahlili</p>
         </div>
-        <div className="bg-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-200 flex items-center">
+        <div className="bg-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-sm border border-slate-200 flex items-center">
           <input 
             type="month" value={tanlanganOy} onChange={(e) => { setTanlanganOy(e.target.value); malumotlarniAnalizQilish(e.target.value); }}
             className="border-none bg-transparent font-semibold text-slate-700 text-xs sm:text-sm outline-none cursor-pointer w-full" 
@@ -148,10 +139,10 @@ export default function AsosiyPanelSahifasi() {
         </div>
       </div>
 
-      {/* METRICS GRID - Telefonda 2x2 qilib yonma-yon qo'yiladi (grid-cols-2) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
+      {/* METRICS GRID - px-3 orqali ekran bo'ylab yoyiladi */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6 px-3 sm:px-0 mb-4 sm:mb-6">
         
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col justify-between hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all">
+        <div className="bg-white rounded-xl sm:rounded-3xl p-3 sm:p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
           <div className="flex justify-between items-start mb-3 sm:mb-6">
             <div className="bg-indigo-50 text-indigo-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl"><Icons.Wallet /></div>
           </div>
@@ -164,7 +155,7 @@ export default function AsosiyPanelSahifasi() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col justify-between hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all">
+        <div className="bg-white rounded-xl sm:rounded-3xl p-3 sm:p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
           <div className="flex justify-between items-start mb-3 sm:mb-6">
             <div className="bg-rose-50 text-rose-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl"><Icons.Alert /></div>
           </div>
@@ -177,7 +168,7 @@ export default function AsosiyPanelSahifasi() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col justify-between hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] transition-all">
+        <div className="bg-white rounded-xl sm:rounded-3xl p-3 sm:p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
           <div className="flex justify-between items-start mb-3 sm:mb-6">
             <div className="bg-emerald-50 text-emerald-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl"><Icons.Users /></div>
           </div>
@@ -190,14 +181,12 @@ export default function AsosiyPanelSahifasi() {
         </div>
 
         {/* MAHSULOT - DARK MODE CARD */}
-        <div className="bg-slate-900 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-lg shadow-slate-900/10 flex flex-col justify-between text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl sm:blur-3xl"></div>
-          
+        <div className="bg-slate-900 rounded-xl sm:rounded-3xl p-3 sm:p-6 shadow-md flex flex-col justify-between text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl"></div>
           <div className="flex justify-between items-center mb-3 sm:mb-4 relative z-10">
             <div className="bg-white/10 text-white p-2 sm:p-3 rounded-xl sm:rounded-2xl backdrop-blur-sm"><Icons.Cube /></div>
             <span className="text-[8px] sm:text-[10px] font-bold tracking-widest text-slate-400 uppercase">Hajm/Kg</span>
           </div>
-          
           <div className="space-y-1.5 sm:space-y-3 relative z-10 w-full">
             <div className="flex justify-between items-end border-b border-slate-700/50 pb-1 sm:pb-2">
               <span className="text-[9px] sm:text-[11px] font-semibold text-slate-400">DEN <span className="opacity-60 hidden sm:inline">({statistika.kechagiSana})</span></span>
@@ -216,10 +205,10 @@ export default function AsosiyPanelSahifasi() {
 
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-6 px-3 sm:px-0">
         
-        {/* CHART SECTION - Telefonda ham gorizontal ko'rinadi */}
-        <div className="lg:col-span-2 bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col overflow-x-auto custom-scrollbar">
+        {/* CHART SECTION */}
+        <div className="lg:col-span-2 bg-white rounded-xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-100 flex flex-col overflow-x-auto custom-scrollbar">
           <div className="flex justify-between items-center mb-4 sm:mb-8 min-w-[300px]">
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">Yillik Dinamika</h3>
@@ -244,7 +233,7 @@ export default function AsosiyPanelSahifasi() {
                   <div 
                     style={{ height: `${heightPercent}%`, minHeight: oy.jamiKg > 0 ? '6px' : '3px' }} 
                     className={`w-full max-w-[12px] sm:max-w-[28px] rounded-full transition-all duration-500 ease-out 
-                      ${isCurrentMonth ? 'bg-indigo-500 shadow-md shadow-indigo-500/30' : oy.jamiKg > 0 ? 'bg-slate-200 group-hover:bg-slate-300' : 'bg-slate-100'}`}
+                      ${isCurrentMonth ? 'bg-indigo-500 shadow-sm' : oy.jamiKg > 0 ? 'bg-slate-200' : 'bg-slate-100'}`}
                   ></div>
                   <span className={`mt-2 sm:mt-4 text-[8px] sm:text-[10px] font-bold uppercase tracking-wider ${isCurrentMonth ? 'text-indigo-600' : 'text-slate-400'}`}>
                     {oy.oyNomi}
@@ -256,22 +245,22 @@ export default function AsosiyPanelSahifasi() {
         </div>
 
         {/* STATS & RATINGS */}
-        <div className="lg:col-span-1 flex flex-col gap-4 sm:gap-6">
+        <div className="lg:col-span-1 flex flex-col gap-2 sm:gap-6">
           
-          {/* QUALITY (BRAK) - Telefonda yonma-yon qilingan (grid-cols-2) */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] border border-slate-100">
+          {/* QUALITY (BRAK) */}
+          <div className="bg-white rounded-xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-100">
             <h3 className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 sm:mb-6">Sifat Nazorati (Brak)</h3>
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 p-2 sm:p-4 rounded-xl sm:rounded-2xl gap-2">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="bg-white p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-slate-600 shadow-sm border border-slate-100"><Icons.Cross /></div>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 p-2 sm:p-4 rounded-xl sm:rounded-2xl gap-1">
+                <div className="flex items-center gap-1.5 sm:gap-3">
+                  <div className="bg-white p-1 sm:p-2 rounded-md sm:rounded-xl text-slate-600 shadow-sm border border-slate-100"><Icons.Cross /></div>
                   <span className="text-[9px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wide">Igna Siniq</span>
                 </div>
                 <div className="text-sm sm:text-lg font-black text-slate-800">{statistika.jamiIgnaMetr} <span className="text-[8px] sm:text-[10px] font-semibold text-slate-400">m</span></div>
               </div>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 p-2 sm:p-4 rounded-xl sm:rounded-2xl gap-2">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="bg-white p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-slate-600 shadow-sm border border-slate-100"><Icons.Cross /></div>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 p-2 sm:p-4 rounded-xl sm:rounded-2xl gap-1">
+                <div className="flex items-center gap-1.5 sm:gap-3">
+                  <div className="bg-white p-1 sm:p-2 rounded-md sm:rounded-xl text-slate-600 shadow-sm border border-slate-100"><Icons.Cross /></div>
                   <span className="text-[9px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wide">Lyc Xato</span>
                 </div>
                 <div className="text-sm sm:text-lg font-black text-slate-800">{statistika.jamiLuxMetr} <span className="text-[8px] sm:text-[10px] font-semibold text-slate-400">m</span></div>
@@ -279,9 +268,9 @@ export default function AsosiyPanelSahifasi() {
             </div>
           </div>
 
-          {/* LIDERLAR GRID - Telefonda va kompyuterda yonma-yon (grid-cols-2) */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 flex-grow">
-            <div className="bg-indigo-600 rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-lg shadow-indigo-600/20 text-white flex flex-col justify-center items-center text-center relative overflow-hidden">
+          {/* LIDERLAR GRID */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 flex-grow">
+            <div className="bg-indigo-600 rounded-xl sm:rounded-3xl p-3 sm:p-5 shadow-sm text-white flex flex-col justify-center items-center text-center relative overflow-hidden">
               <div className="absolute -right-2 -bottom-2 sm:-right-4 sm:-bottom-4 opacity-10"><Icons.Trophy /></div>
               <div className="bg-white/20 p-2 sm:p-3 rounded-xl sm:rounded-2xl mb-2 sm:mb-3 backdrop-blur-sm"><Icons.Trophy /></div>
               <p className="text-[8px] sm:text-[10px] font-medium uppercase tracking-widest text-indigo-200 mb-0.5 sm:mb-1">Eng yaxshi</p>
@@ -291,7 +280,7 @@ export default function AsosiyPanelSahifasi() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-white rounded-xl sm:rounded-3xl p-3 sm:p-5 shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
               <div className="bg-rose-50 text-rose-500 p-2 sm:p-3 rounded-xl sm:rounded-2xl mb-2 sm:mb-3"><Icons.Alert /></div>
               <p className="text-[8px] sm:text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5 sm:mb-1">Eng ko'p xato</p>
               <p className="text-xs sm:text-base font-bold tracking-tight text-slate-800 mb-2 sm:mb-1">{statistika.qoidabuzar.ism !== '-' ? statistika.qoidabuzar.ism : '---'}</p>
