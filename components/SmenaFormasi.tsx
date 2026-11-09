@@ -18,10 +18,8 @@ export default function SmenaFormasi({
   const isYopiq = !!topilganSmena;
 
   return (
-    // Mobilda 2 ta ustun (grid-cols-2), kompyuterda 4 ta ustun (lg:grid-cols-4). Tashqi ramkalar olib tashlandi.
     <div className="bg-white p-3 sm:p-5 w-full grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 relative">
       
-      {/* Agar smena yopiq bo'lsa (yuklangan bo'lsa), ustiga xira parda tortiladi */}
       {isYopiq && (
         <div className="absolute inset-0 z-10 bg-slate-50/40 rounded-xl cursor-not-allowed" title="Bu smena yopilgan"></div>
       )}
@@ -40,7 +38,7 @@ export default function SmenaFormasi({
         />
       </div>
 
-      {/* SMENA TURI */}
+      {/* SMENA TURI - Matnlar joyiga qaytarildi */}
       <div className="flex flex-col relative group">
         <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 pl-1">
           <Icons.Shift /> Smena
@@ -51,10 +49,9 @@ export default function SmenaFormasi({
           disabled={isYopiq}
           className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 sm:p-3 text-xs sm:text-sm font-black text-slate-700 outline-none transition-all focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60 appearance-none cursor-pointer"
         >
-          <option>DEN</option>
-          <option>NOCH</option>
+          <option value="DEN (Kunduzgi)">DEN (Kunduzgi)</option>
+          <option value="NOCH (Tungi)">NOCH (Tungi)</option>
         </select>
-        {/* Select o'qi */}
         <div className="absolute right-3 bottom-3 sm:bottom-4 pointer-events-none text-slate-400">
           <svg fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
         </div>
