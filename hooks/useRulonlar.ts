@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 export function useRulonlar() {
   const [moshinalar, setMoshinalar] = useState<any[]>([]);
   const [sana, setSana] = useState('');
-  const [smenaTuri, setSmenaTuri] = useState('DEN (Kunduzgi)');
+  const [smenaTuri, setSmenaTuri] = useState('');
   const [kontrolchi, setKontrolchi] = useState('');
   const [master, setMaster] = useState('');
   const [moshinaMaqotlari, setMoshinaMaqotlari] = useState<Record<number, any>>({});
@@ -16,19 +16,40 @@ export function useRulonlar() {
   const dataRef = useRef({ sana, smenaTuri, kontrolchi, master, moshinaMaqotlari });
   dataRef.current = { sana, smenaTuri, kontrolchi, master, moshinaMaqotlari };
 
+  // 🚀 YANGI: Sanani avtomat "bugun"ga sakratish o'rniga, oxirgi tanlangan xotirani o'qiymiz
   useEffect(() => {
-    const bugun = new Date().toISOString().split('T')[0];
-    setSana(bugun);
+    const saqlanganSana = localStorage.getItem('zavod_oxirgi_sana');
+    const saqlanganSmena = localStorage.getItem('zavod_oxirgi_smena');
+    
+    if (saqlanganSana) {
+      setSana(saqlanganSana);
+    } else {
+      setSana(new Date().toISOString().split('T')[0]);
+    }
+
+    if (saqlanganSmena) {
+      setSmenaTuri(saqlanganSmena);
+    } else {
+      setSmenaTuri('DEN (Kunduzgi)');
+    }
+    
     setIsInitialized(true);
   }, []);
 
-  // 🚀 1. GIBRID O'QISH: Ham Local, ham Neon DB
+  // 🚀 YANGI: Qo'lda qaysi sana/smena tanlansa, shuni "xotiraga" mixlab qo'yamiz
   useEffect(() => {
-    if (!sana || !isInitialized) return;
+    if (sana) localStorage.setItem('zavod_oxirgi_sana', sana);
+  }, [sana]);
+
+  useEffect(() => {
+    if (smenaTuri) localStorage.setItem('zavod_oxirgi_smena', smenaTuri);
+  }, [smenaTuri]);
+
+  // QOLGAN BARCHA KODLAR O'ZGARISHSIZ QOLDI
+  useEffect(() => {
+    if (!sana || !smenaTuri || !isInitialized) return;
 
     const localKey = `zavod_smena_${sana}_${smenaTuri}`;
-
-    // A) Avval darhol LocalStorage-dan o'qiymiz (0 soniyada ekranga chiziladi)
     const localDataStr = localStorage.getItem(localKey);
     let localDataMavjud = false;
 
@@ -48,16 +69,24 @@ export function useRulonlar() {
             });
             setMoshinalar(yangiMoshinalar);
             setMoshinaMaqotlari(yangiMaqotlar);
+          } else {
+            // Agar moshinalar yo'q bo'lsa, tozalash kerak (yangi kunga o'tganda eski ma'lumot qolib ketmasligi uchun)
+            setMoshinalar([]);
+            setMoshinaMaqotlari({});
           }
           localDataMavjud = true;
-          setIsLoaded(true); // Ekranda darhol raqamlar chiqadi, "Yuklanmoqda..." chiqmaydi!
+          setIsLoaded(true); 
         }
       } catch (e) { console.log(e) }
+    } else {
+      // Localda bu kun uchun hech nima yo'q bo'lsa tozalash
+      setKontrolchi('');
+      setMaster('');
+      setMoshinalar([]);
+      setMoshinaMaqotlari({});
     }
 
-    // B) Orqa fonda sekingina Neon bazasiga yugurib borib, o'zgarish bormi tekshiramiz
     const bazadanOqish = async () => {
-      // Agar localda hech nima bo'lmasa, faqat shundagina "Yuklanmoqda" ni ko'rsatamiz
       if (!localDataMavjud) setIsLoaded(false); 
 
       try {
@@ -83,7 +112,6 @@ export function useRulonlar() {
               setMoshinalar(yangiMoshinalar);
               setMoshinaMaqotlari(yangiMaqotlar);
 
-              // Neon'dan kelgan eng toza ma'lumotni darhol yana Localga ham tashlab qo'yamiz
               localStorage.setItem(localKey, JSON.stringify({
                   sana, smenaTuri, kontrolchi: data.smena.kontrolchi, master: data.smena.master, moshinalar: data.smena.moshinalar
               }));
@@ -94,7 +122,6 @@ export function useRulonlar() {
         console.error("Neon DB dan o'qishda xatolik:", e);
       } finally {
         setIsLoaded(true);
-        // Yangi ma'lumot kelgach, uni darhol yana Neon'ga saqlab yubormasligi uchun himoya
         setTimeout(() => { isFirstSave.current = false; }, 2000); 
       }
     };
@@ -102,7 +129,6 @@ export function useRulonlar() {
     bazadanOqish();
   }, [sana, smenaTuri, isInitialized]);
 
-  // 🚀 2. GIBRID SAQLASH: Darhol ekranga yozib, keyin Neon'ga jo'natamiz
   const bazagaSaqlash = useCallback(async (currentData: typeof dataRef.current) => {
     if (!currentData.sana) return;
     try {
@@ -114,10 +140,8 @@ export function useRulonlar() {
         moshinalar: Object.values(currentData.moshinaMaqotlari)
       };
 
-      // 1. Kutmasdan tezda LocalStorage'ga yozamiz (tezkor ishlash uchun)
       localStorage.setItem(`zavod_smena_${currentData.sana}_${currentData.smenaTuri}`, JSON.stringify(payload));
 
-      // 2. Neon (Amerika)ga yuboramiz
       await fetch('/api/smena', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -142,7 +166,6 @@ export function useRulonlar() {
     return () => clearTimeout(taymer);
   }, [sana, smenaTuri, kontrolchi, master, moshinaMaqotlari, isLoaded, bazagaSaqlash]);
 
-  // Brak sinxronizatsiyasi (o'zgarishsiz)
   useEffect(() => {
     if (!sana || !isInitialized) return;
     const joriyYilOy = sana.slice(0, 7);

@@ -27,8 +27,8 @@ export default function SmenaFormasi({
           onChange={(e) => setSmenaTuri(e.target.value)} 
           className="w-full border border-gray-300 rounded-lg p-2.5 text-sm font-semibold text-gray-800 bg-gray-50 outline-none"
         >
-          <option value="DEN (Kunduzgi)">DEN (Kunduzgi)</option>
-          <option value="NOCH (Tungi)">NOCH (Tungi)</option>
+          <option value="DEN (Kunduzgi)">DEN</option>
+          <option value="NOCH (Tungi)">NOCH</option>
         </select>
       </div>
       <div>
