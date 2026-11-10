@@ -73,6 +73,7 @@ export default function AsosiyPanelSahifasi() {
 
     const tempJarima = (tempIgna * brakStavkalari.ignaSinigi) + (tempLux * brakStavkalari.luxXatosi);
     
+    // TIMEZONE TO'G'RILANDI: Mahalliy vaqt bilan olinadi!
     const hozir = new Date();
     const bugunSanaStr = `${hozir.getFullYear()}-${String(hozir.getMonth() + 1).padStart(2, '0')}-${String(hozir.getDate()).padStart(2, '0')}`;
     
@@ -84,65 +85,76 @@ export default function AsosiyPanelSahifasi() {
     let y_kechaDenKg = 0, y_kechaNochKg = 0, y_bugunJamiKg = 0;
     const yillikOylar: Record<string, number> = {};
 
-    // 1. YOPILGAN (ARXIV) JADVALLAR
+    // 🚀 Yangi toza mantiq: BARCHA (ham arxiv, ham ochiq) smenalarni yig'ish!
+    const barchaSmenalarMap = new Map();
+
+    // 1. Arxiv (yopilgan) jadvallar
     const arxivSmenalar = JSON.parse(localStorage.getItem('zavod_smena_arxivlari') || '[]');
-    arxivSmenalar.forEach((smena: any) => {
-      let smenaKg = 0;
-      if (smena.moshinaTafsilotlari) {
-        Object.values(smena.moshinaTafsilotlari).forEach((moshina: any) => {
-          if (moshina.rulonlar && Array.isArray(moshina.rulonlar)) {
-            moshina.rulonlar.forEach((rulon: any) => {
-              const kgNum = parseFloat(String(rulon.kg).replace(',', '.'));
-              if (!isNaN(kgNum)) smenaKg += kgNum;
-            });
-          }
+    arxivSmenalar.forEach((s: any) => {
+      if (s.sana && s.smena) {
+        barchaSmenalarMap.set(`${s.sana}_${s.smena}`, {
+           sana: s.sana,
+           smena: s.smena,
+           moshinaTafsilotlari: s.moshinaTafsilotlari
         });
       }
+    });
+
+    // 2. Aktiv (yopilmagan) jadvallar 
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      // Xato bergan Regex shartlari butunlay olib tashlanib, toza JSON usuliga o'tildi:
+      if (key && key.startsWith('zavod_smena_') && !key.includes('arxiv')) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '{}');
+          if (data.sana && data.smena && Array.isArray(data.moshinalar)) {
+            barchaSmenalarMap.set(`${data.sana}_${data.smena}`, {
+              sana: data.sana,
+              smena: data.smena,
+              moshinaTafsilotlari: data.moshinalar
+            });
+          }
+        } catch (e) {
+          console.error("Aktiv smenani o'qishda xatolik:", e);
+        }
+      }
+    }
+
+    // 🚀 Hamma to'plangan ma'lumotlarni hisoblash:
+    barchaSmenalarMap.forEach((smena: any) => {
+      let smenaKg = 0;
       
+      const moshinalarList = Array.isArray(smena.moshinaTafsilotlari)
+        ? smena.moshinaTafsilotlari
+        : Object.values(smena.moshinaTafsilotlari || {});
+
+      moshinalarList.forEach((moshina: any) => {
+        if (moshina.rulonlar && Array.isArray(moshina.rulonlar)) {
+          moshina.rulonlar.forEach((rulon: any) => {
+            const kgNum = parseFloat(String(rulon.kg || 0).replace(',', '.'));
+            if (!isNaN(kgNum)) smenaKg += kgNum;
+          });
+        }
+      });
+
       const sSana = smena.sana || '';
-      const sSmena = smena.smena || '';
+      const sSmena = String(smena.smena || '');
+      
+      // DEN, NOCH, BUGUN taqsimoti
       if (sSana === kechaSanaStr) {
         if (sSmena.includes('DEN')) y_kechaDenKg += smenaKg;
         if (sSmena.includes('NOCH')) y_kechaNochKg += smenaKg;
       }
-      if (sSana === bugunSanaStr) y_bugunJamiKg += smenaKg; 
+      if (sSana === bugunSanaStr) {
+        y_bugunJamiKg += smenaKg;
+      }
       
+      // Yillik dinamika taqsimoti
       if (sSana) {
         const smenaOyi = sSana.slice(0, 7);
         yillikOylar[smenaOyi] = (yillikOylar[smenaOyi] || 0) + smenaKg;
       }
     });
-
-    // 2. YOPILMAGAN (AKTIV) JADVALLAR (Eskirgan jadvallardan ximoya qilingan)
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('zavod_moshina_data_') || key === 'moshinaMaqotlari')) {
-        try {
-          const rawData = localStorage.getItem(key) || '';
-          if (rawData.includes('"rulonlar"')) {
-             let mKg = 0;
-             const regex = /"kg"\s*:\s*"?([0-9.,]+)"?/g;
-             let match;
-             while ((match = regex.exec(rawData)) !== null) {
-                const kNum = parseFloat(match[1].replace(',', '.'));
-                if (!isNaN(kNum)) mKg += kNum;
-             }
-             
-             // Faqat KECHAGI yoki BUGUNGI sanani o'z ichiga olgan aktiv bazanigina hisoblaydi!
-             if (key.includes(kechaSanaStr)) {
-                if (key.includes('DEN')) y_kechaDenKg += mKg;
-                if (key.includes('NOCH')) y_kechaNochKg += mKg;
-             } else if (key.includes(bugunSanaStr) || key === 'moshinaMaqotlari') {
-                y_bugunJamiKg += mKg;
-             }
-             
-             const matchDate = key.match(/20\d{2}-\d{2}/);
-             const activeMonth = matchDate ? matchDate[0] : (new Date().toISOString().slice(0,7));
-             yillikOylar[activeMonth] = (yillikOylar[activeMonth] || 0) + mKg;
-          }
-        } catch (e) { console.error(e); }
-      }
-    }
 
     const oyNomlari = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"];
     const grafikDataArr: { oyKodi: string, oyNomi: string, jamiKg: number }[] = [];
@@ -159,7 +171,7 @@ export default function AsosiyPanelSahifasi() {
     setStatistika({
       jamiOylik: tempOylik, jamiJarima: tempJarima, jamiIgnaMetr: tempIgna, jamiLuxMetr: tempLux,
       faolIshchilarSoni: noyobIshchilar.length, kechagiSana: kechaKorsatish, 
-      kechagiDenKg: y_kechaDenKg, kechagiNochKg: y_kechaNochKg, bugungiJamiKg: y_bugunJamiKg,
+      kechagiDenKg: Number(y_kechaDenKg.toFixed(2)), kechagiNochKg: Number(y_kechaNochKg.toFixed(2)), bugungiJamiKg: Number(y_bugunJamiKg.toFixed(2)),
       qahramon: { ism: bestWorker, kun: maxKun }, qoidabuzar: { ism: worstWorker, brakMetr: maxBrak },
       grafikData: grafikDataArr, grafikMaxKg: grafikEngKopKg || 1
     });
