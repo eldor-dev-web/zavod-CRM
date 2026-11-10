@@ -267,18 +267,21 @@ export default function AsosiyPanelSahifasi() {
             <div className="bg-slate-50 p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-slate-400"><Icons.Chart /></div>
           </div>
 
-          {/* 🚀 O'ZGARTIRILGAN GRAFIK QISMI (Hover va bosish bilan) */}
           <div className="flex items-end justify-between flex-grow gap-1 sm:gap-4 relative pt-8 h-[140px] sm:h-auto min-w-[300px]">
             {statistika.grafikData.map((oy, index) => {
               const heightPercent = oy.jamiKg > 0 ? (oy.jamiKg / statistika.grafikMaxKg) * 100 : 0;
               const isCurrentMonth = oy.oyKodi === tanlanganOy;
 
               return (
-                <div key={index} className="flex flex-col items-center justify-end w-full group h-full relative cursor-pointer">
+                <div 
+                  key={index} 
+                  tabIndex={0} // <--- MANA SHU QO'SHILDI (Telefonda bosishni sezishi uchun)
+                  className="flex flex-col items-center justify-end w-full group h-full relative cursor-pointer focus:outline-none"
+                >
                   
-                  {/* Tooltip - Faqat bosganda yoki sichqoncha olib borganda ko'rinadigan oyna */}
+                  {/* Tooltip - Bosganda yoki sichqoncha olib borganda chiqadi */}
                   {oy.jamiKg > 0 && (
-                    <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-300 flex flex-col items-center pointer-events-none z-10">
+                    <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-active:opacity-100 group-hover:-translate-y-1 group-focus:-translate-y-1 transition-all duration-300 flex flex-col items-center pointer-events-none z-10">
                       <div className="bg-slate-800 text-white text-[9px] sm:text-[11px] font-bold py-1 px-2 rounded-md shadow-lg whitespace-nowrap">
                         {oy.jamiKg.toLocaleString('ru-RU')} kg
                       </div>
@@ -290,10 +293,10 @@ export default function AsosiyPanelSahifasi() {
                   <div 
                     style={{ height: `${heightPercent}%`, minHeight: oy.jamiKg > 0 ? '6px' : '3px' }} 
                     className={`w-full max-w-[12px] sm:max-w-[28px] rounded-full transition-all duration-500 ease-out 
-                      ${isCurrentMonth ? 'bg-indigo-500 shadow-sm' : oy.jamiKg > 0 ? 'bg-slate-300 group-hover:bg-indigo-400' : 'bg-slate-100'}`}
+                      ${isCurrentMonth ? 'bg-indigo-500 shadow-sm' : oy.jamiKg > 0 ? 'bg-slate-300 group-hover:bg-indigo-400 group-focus:bg-indigo-400' : 'bg-slate-100'}`}
                   ></div>
                   
-                  <span className={`mt-2 sm:mt-4 text-[8px] sm:text-[10px] font-bold uppercase tracking-wider transition-colors ${isCurrentMonth ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500'}`}>
+                  <span className={`mt-2 sm:mt-4 text-[8px] sm:text-[10px] font-bold uppercase tracking-wider transition-colors ${isCurrentMonth ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500 group-focus:text-indigo-500'}`}>
                     {oy.oyNomi}
                   </span>
                 </div>
