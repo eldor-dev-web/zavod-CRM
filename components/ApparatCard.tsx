@@ -3,7 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 
 export default function ApparatCard({ id, onDataChange, initialData, readOnly, joriySana, rol, isLoaded = true }: any) {
   const [rulonlar, setRulonlar] = useState(
-    initialData?.rulonlar || [{ id: 1, kg: '', nuqsonlar: {} as any, vaqt: '' }]
+    initialData?.rulonlar?.length > 0 
+      ? initialData.rulonlar 
+      : [{ id: 1, kg: '', nuqsonlar: {} as any, vaqt: '' }]
   );
   
   const [info, setInfo] = useState({
@@ -20,13 +22,38 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
   const kontrolchiHuquqi = rol === 'admin' || rol === 'kontrolchi';
 
   const [operatorlarList, setOperatorlarList] = useState<any[]>([]);
-  const [qidiruv, setQidiruv] = useState(info.operator);
+  const [qidiruv, setQidiruv] = useState(info.operator || '');
   const [dropdownOchiq, setDropdownOchiq] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Bazadan yoki localStorage'dan ma'lumot kelganda kartani yangilash
+  useEffect(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      setInfo({
+        raqam: initialData.raqam || '',
+        talimoti: initialData.talimoti || '',
+        ip: initialData.ip || '', 
+        lot: initialData.lot || '',
+        brend: initialData.brend || '',
+        operator: initialData.operator || '',
+        operatorId: initialData.operatorId || null
+      });
+      setQidiruv(initialData.operator || '');
+
+      if (initialData.rulonlar && initialData.rulonlar.length > 0) {
+        const oxirgi = initialData.rulonlar[initialData.rulonlar.length - 1];
+        const yangiRulonlar = oxirgi && String(oxirgi.kg).trim() !== ''
+          ? [...initialData.rulonlar, { id: initialData.rulonlar.length + 1, kg: '', nuqsonlar: {}, vaqt: '' }]
+          : initialData.rulonlar;
+        setRulonlar(yangiRulonlar);
+      }
+    }
+  }, [initialData?.id]);
+
+  // Ma'lumot o'zgarganda tepaga (useRulonlar ga) uzatish
   useEffect(() => {
     if (onDataChange) {
-      onDataChange({ ...info, rulonlar });
+      onDataChange({ id, ...info, rulonlar });
     }
   }, [info, rulonlar]);
 
@@ -113,7 +140,7 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
     setRulonlar(yangiRulonlar);
   };
 
-  const haqiqiyRulonlar = rulonlar.filter((r: any) => r.kg.trim() !== '');
+  const haqiqiyRulonlar = rulonlar.filter((r: any) => String(r.kg || '').trim() !== '');
   const jamiKg = haqiqiyRulonlar.reduce((sum: number, r: any) => sum + (parseFloat(r.kg) || 0), 0);
 
   if (!isLoaded) {
@@ -241,7 +268,7 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
                 {rulonlar.map((r: any, idx: number) => (
                   <td key={`nuqson-${nIdx}-${idx}`} className="border-r border-slate-200 p-0 min-w-[60px] sm:min-w-[80px]">
                     <input 
-                      type="text" disabled={readOnly || !kontrolchiHuquqi} value={r.nuqsonlar[nuqson] || ''} 
+                      type="text" disabled={readOnly || !kontrolchiHuquqi} value={r.nuqsonlar?.[nuqson] || ''} 
                       onChange={(e) => handleNuqsonChange(idx, nuqson, e.target.value)} 
                       className="w-full h-full min-h-[30px] sm:min-w-[40px] p-1 sm:p-2 text-center font-bold text-slate-700 outline-none bg-transparent disabled:text-slate-400 disabled:cursor-not-allowed focus:bg-amber-50 focus:text-amber-900 transition-colors text-[10px] sm:text-sm" 
                     />

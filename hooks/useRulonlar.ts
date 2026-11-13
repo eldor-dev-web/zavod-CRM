@@ -122,7 +122,7 @@ export function useRulonlar() {
         console.error("Neon DB dan o'qishda xatolik:", e);
       } finally {
         setIsLoaded(true);
-        setTimeout(() => { isFirstSave.current = false; }, 2000); 
+        setTimeout(() => { isFirstSave.current = false; }, 300); 
       }
     };
     
@@ -235,7 +235,14 @@ export function useRulonlar() {
 
   }, [moshinaMaqotlari, sana, smenaTuri, isInitialized]);
 
-  const moshinaQoshish = () => setMoshinalar([...moshinalar, { id: Date.now() }]);
+  const moshinaQoshish = () => {
+    const newId = Date.now();
+    setMoshinalar(prev => [...prev, { id: newId }]);
+    setMoshinaMaqotlari(prev => ({
+      ...prev,
+      [newId]: { id: newId, raqam: '', talimoti: '', ip: '', lot: '', brend: '', operator: '', operatorId: null, rulonlar: [] }
+    }));
+  };
   
   const jadvalniOchirish = (idToRemove: number) => {
     if (window.confirm("Ushbu moshina jadvalini o'chirib yubormoqchimisiz?")) {
