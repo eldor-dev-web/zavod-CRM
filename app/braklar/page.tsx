@@ -133,14 +133,15 @@ export default function BraklarSahifasi() {
 
   return (
     <div className="p-2.5 sm:p-6 max-w-[100vw] mx-auto font-sans bg-slate-50 min-h-screen">
-      {/* 1. TEPADAGI SARLAVHA BLOKI */}
+      
+      {/* 1. TEPADAGI SARLAVHA VA FILTRLAR */}
       <div className="bg-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4 mt-8 md:mt-0">
         <div>
-          <h1 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight">Operatorlar Brak va Xatolar Hisobi</h1>
+          <h1 className="text-base sm:text-2xl font-black text-slate-900 tracking-tight">Operatorlar Brak Hisobi</h1>
         </div>
         <div className="flex items-end sm:items-center justify-between sm:justify-end gap-2 sm:gap-3">
           <button onClick={bazaniSinxronlash} disabled={yangilanmoqda} className={`px-3 py-2 sm:px-4 sm:py-2 border border-slate-300 rounded-xl text-[11px] sm:text-xs font-bold transition-all shadow-2xs whitespace-nowrap ${yangilanmoqda ? 'bg-slate-100 text-slate-400' : 'bg-white text-slate-700 hover:bg-slate-50 hover:border-blue-400'}`}>
-            {yangilanmoqda ? '⏳ Yangilanmoqda...' : '🔄 Bazani Yangilash'}
+            {yangilanmoqda ? '⏳ Yangilanmoqda...' : '🔄 Yangilash'}
           </button>
           <div>
             <label className="block text-[9px] sm:text-xs font-bold text-slate-400 uppercase mb-1 sm:mb-1.5">Hisobot Oyi</label>
@@ -149,16 +150,16 @@ export default function BraklarSahifasi() {
         </div>
       </div>
 
-      {/* 2. UMUMIY OYLIK JARIMA HISOBOTI JADVALI */}
+      {/* 2. ASOSIY JADVAL BLOKI */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden mb-4 sm:mb-6">
         <div className="p-3 sm:p-5 bg-slate-100/80 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2.5 sm:gap-4">
           <div>
             <h3 className="text-[11px] sm:text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5 sm:gap-2">
-              <span>📊</span> {tanlanganOy} Oyi Boʻyicha Umumiy Oylik Jarima Hisoboti
+              <span>📊</span> Oylik Jarima Hisoboti
             </h3>
           </div>
           <button type="button" onClick={() => setKunlikJadvalOchiq(!kunlikJadvalOchiq)} className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all shadow-2xs flex items-center justify-center gap-1.5 sm:gap-2 ${kunlikJadvalOchiq ? 'bg-slate-800 text-white hover:bg-slate-900' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
-            <span>{kunlikJadvalOchiq ? '📂 Kunlik Jadvalni Yopish' : '🔍 Kunlik Tafsilotlarni Koʻrish'}</span>
+            <span>{kunlikJadvalOchiq ? '📂 Kunlik Jadvalni Yopish' : '🔍 Kunlik Tafsilotlar'}</span>
             <span className="text-xs sm:text-base">{kunlikJadvalOchiq ? '▲' : '▼'}</span>
           </button>
         </div>
@@ -209,20 +210,22 @@ export default function BraklarSahifasi() {
         />
       )}
 
-      {/* 4. PASTKI UMUMIY XULOSA BLOKI */}
+      {/* 4. PASTKI UMUMIY XULOSA (PREMIUM DARK SLATE DIZAYN) */}
       <div className="bg-white p-3.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4">
         <div>
-          <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Tanlangan oy umumiy brak ko'rsatkichi:</p>
-          <p className="text-xs sm:text-sm font-semibold text-slate-800 mt-1">
-            Jami Igna sinigʻi: <strong className="text-red-600">{umumiyIgnaMetr} metr</strong> | Jami Lux xatosi: <strong className="text-blue-600">{umumiyLuxMetr} metr</strong>
+          <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Jami xatolar:</p>
+          <p className="text-xs sm:text-sm font-semibold text-slate-800 mt-0.5">
+            Igna: <strong className="text-red-600">{umumiyIgnaMetr} metr</strong> | Lux: <strong className="text-blue-600">{umumiyLuxMetr} metr</strong>
           </p>
         </div>
         <div className="flex flex-wrap gap-4 text-xs sm:text-sm font-black">
-          <div className="w-full sm:w-auto text-center bg-red-50 border border-red-200 px-3 py-2.5 sm:px-5 sm:py-3 rounded-xl text-red-900 shadow-2xs">
-            🚨 Umumiy Jami Jarima Summasi: <span className="text-red-600 ml-1">{umumiyJarimaSummasi.toLocaleString()} so'm</span>
+          <div className="w-full sm:w-auto text-center bg-slate-900 border border-slate-800 px-4 py-3 sm:px-5 sm:py-3 rounded-xl text-slate-200 shadow-sm flex items-center justify-center gap-2">
+            <span>💼 Jami Jarima:</span> 
+            <span className="text-amber-400 font-black text-sm sm:text-base">{umumiyJarimaSummasi.toLocaleString()} so'm</span>
           </div>
         </div>
       </div>
+
     </div>
   );
 }
