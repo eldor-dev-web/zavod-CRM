@@ -30,7 +30,7 @@ export async function POST(request: Request) {
             patlak: r.nuqsonlar?.["Patlak"] || "",
             lycXato: r.nuqsonlar?.["Lyc xato"] || "",
             ignaSiniq: r.nuqsonlar?.["Igna siniq"] || "",
-            yogIzi: r.nuqsonlar?.["Yog' izi"] || "",
+            yogIzi: r.nuqsonlar?.["Yog izi"] || "",
             kumas: r.nuqsonlar?.["Kumas"] || ""
           };
         })
@@ -82,7 +82,11 @@ export async function GET(request: Request) {
     const topilganSmena = await prisma.smena.findFirst({
       where: { sana: sana, smenaTuri: smena },
       include: {
-        moshinalar: { include: { rulonlar: true } }
+        moshinalar: { 
+          include: {
+            rulonlar: {orderBy: { tartibRaqam: 'asc' }}
+          }
+         }
       }
     });
 
@@ -93,14 +97,15 @@ export async function GET(request: Request) {
          moshinalar: topilganSmena.moshinalar.map((m: any) => ({
            ...m,
            id: m.id,
-           rulonlar: m.rulonlar.map((r: any) => ({
-             kg: r.kg !== null ? String(r.kg) : "",
+           rulonlar: m.rulonlar.map((r: any, idx: number) => ({
+             id: r.tartibRaqam || idx + 1,
+              kg: r.kg !== null && r.kg !== undefined ? String(r.kg) : "",
              vaqt: r.vaqt || "",
              nuqsonlar: {
                "Patlak": r.patlak || "",
                "Lyc xato": r.lycXato || "",
                "Igna siniq": r.ignaSiniq || "",
-               "Yog' izi": r.yogIzi || "",
+               "Yog izi": r.yogIzi || "",
                "Kumas": r.kumas || ""
              }
            }))
