@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import BraklarJadvali from '@/components/BraklarJadvali';
+import AvansBloknot from '@/components/AvanstBloknot.';
 
 export default function BraklarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
@@ -291,7 +292,7 @@ export default function BraklarSahifasi() {
           <span className="font-black text-xs sm:text-base">{umumiyJarimaSummasi.toLocaleString()} <span className="text-[10px] font-bold text-blue-200">so'm</span></span>
         </div>
       </div>
-
+        <AvansBloknot tanlanganOy={tanlanganOy} ishchilar={brakBorOperatorlar} />
     </div>
   );
 }
