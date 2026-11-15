@@ -110,30 +110,30 @@ export default function SozlamalarSahifasi() {
             <span>👔</span> Lavozimlar va Stavkalarni Boshqarish
           </h2>
           <form onSubmit={yangiLavozimQoshish} className="flex flex-col sm:flex-row gap-2 mb-6">
-            <input type="text" placeholder="Yangi lavozim nomi (masalan: Slesar)..." value={yangiLavozimNomi} onChange={(e) => setYangiLavozimNomi(e.target.value)} className="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 outline-none focus:bg-white focus:border-blue-500 font-semibold" />
-            <input type="number" placeholder="1 Smena puli (so'm)" value={yangiStavka} onChange={(e) => setYangiStavka(e.target.value)} className="w-full sm:w-44 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 outline-none focus:bg-white focus:border-blue-500 font-semibold" />
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-all active:scale-95 whitespace-nowrap">+</button>
+            <input type="text" placeholder="Yangi lavozim" value={yangiLavozimNomi} onChange={(e) => setYangiLavozimNomi(e.target.value)} className="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 outline-none focus:bg-white focus:border-blue-500 font-semibold" />
+            <input type="number" placeholder="Smena puli (so'm)" value={yangiStavka} onChange={(e) => setYangiStavka(e.target.value)} className="w-full sm:w-44 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 outline-none focus:bg-white focus:border-blue-500 font-semibold" />
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-all active:scale-95 whitespace-nowrap">✓</button>
           </form>
 
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="bg-gray-100 border-b border-gray-200 text-xs uppercase font-black text-gray-700">
-                  <th className="p-3 border-r border-gray-200">Nomi / Lavozimi</th>
-                  <th className="p-3 border-r border-gray-200 text-right w-48">Summa / Smena Stavkasi</th>
-                  <th className="p-3 text-center w-20">Amal</th>
+                  <th className="p-3 border-r border-gray-200">Lavozim</th>
+                  <th className="p-3 border-r border-gray-200 text-right w-48">Smena Stavkasi</th>
+                  <th className="p-3 text-center w-20">🎛️</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 <tr className="bg-blue-50/50 hover:bg-blue-50">
                   <td className="p-3 font-semibold text-gray-800 border-r border-gray-200 flex items-center gap-2"><span className="text-blue-600 font-bold">⭐</span> Qo'shimcha moshina</td>
                   <td className="p-2 text-right border-r border-gray-200"><input type="number" value={operatorQoshimcha} onChange={(e) => handleOperatorQoshimchaChange(Number(e.target.value))} className="w-full p-1.5 border border-gray-300 rounded text-right font-black text-blue-700 bg-white outline-none focus:border-blue-500" /></td>
-                  <td className="p-3 text-center text-xs text-gray-400 font-semibold">Asosiy</td>
+                  <td className="p-3 text-center text-xs text-gray-400 font-semibold">⚙️</td>
                 </tr>
                 <tr className="bg-emerald-50/40 hover:bg-emerald-50/70">
-                  <td className="p-3 font-black text-gray-900 border-r border-gray-200">Operator</td>
+                  <td className="p-3 font-black text-gray-900 border-r border-gray-200"> 👤 Operator</td>
                   <td className="p-2 text-right border-r border-gray-200"><input type="number" value={operatorLavozim.stavka} onChange={(e) => handleOperatorStavkaChange(Number(e.target.value))} className="w-full p-1.5 border border-gray-300 rounded text-right font-black text-emerald-700 bg-white focus:bg-white focus:border-emerald-500 outline-none" /></td>
-                  <td className="p-3 text-center text-xs text-gray-400 font-semibold">Asosiy</td>
+                  <td className="p-3 text-center text-xs text-gray-400 font-semibold">👤</td>
                 </tr>
                 {qolganLavozimlar.map((lavozim) => (
                   <tr key={lavozim.id} className="hover:bg-gray-50">
@@ -157,11 +157,11 @@ export default function SozlamalarSahifasi() {
             </h2>
             <div className="space-y-4">
               <div className="p-4 border border-gray-200 rounded-xl bg-red-50/50">
-                <label className="block text-xs font-bold text-red-600 uppercase mb-2">Igna sinig'i narxi (so'm)</label>
+                <label className="block text-xs font-bold text-red-600 uppercase mb-2">Igna sinig'i narxi (m)</label>
                 <input type="text" value={brakStavkalari.ignaSinigi} onChange={(e) => narxniOzgartirish('ignaSinigi', e.target.value)} className="w-full p-2.5 border border-red-200 rounded-lg font-black text-red-700 outline-none focus:border-red-500 focus:bg-white transition-all text-right text-lg shadow-sm" placeholder="0" />
               </div>
               <div className="p-4 border border-gray-200 rounded-xl bg-blue-50/50">
-                <label className="block text-xs font-bold text-blue-600 uppercase mb-2">Lux xatosi narxi (so'm)</label>
+                <label className="block text-xs font-bold text-blue-600 uppercase mb-2">Lux xatosi narxi (m)</label>
                 <input type="text" value={brakStavkalari.luxXatosi} onChange={(e) => narxniOzgartirish('luxXatosi', e.target.value)} className="w-full p-2.5 border border-blue-200 rounded-lg font-black text-blue-700 outline-none focus:border-blue-500 focus:bg-white transition-all text-right text-lg shadow-sm" placeholder="0" />
               </div>
             </div>
