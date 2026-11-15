@@ -78,23 +78,15 @@ export default function BraklarJadvali({
                   <td key={kun} className="p-2 text-center border-r border-slate-100 last:border-r-0 bg-white">
                     <div className="flex items-center justify-center gap-1.5">
                       {ignaBor && (
-                        <input 
-                          type="text"
-                          inputMode="numeric"
-                          value={data.igna}
-                          onChange={(e) => qiymatniOzgartirish(ishchi.id, kun, 'igna', e.target.value)}
-                          className="w-10 h-8 text-center font-black text-xs text-red-600 bg-red-50/70 rounded-lg border border-red-200 outline-none focus:bg-white transition-colors"
-                        />
+                        <div className="w-10 h-8 flex items-center justify-center font-black text-xs text-red-600 bg-red-50/70 rounded-lg border border-red-200 select-none">
+                          {data.igna}
+                        </div>
                       )}
 
                       {luxBor && (
-                        <input 
-                          type="text"
-                          inputMode="numeric"
-                          value={data.lux}
-                          onChange={(e) => qiymatniOzgartirish(ishchi.id, kun, 'lux', e.target.value)}
-                          className="w-10 h-8 text-center font-black text-xs text-blue-600 bg-blue-50/70 rounded-lg border border-blue-200 outline-none focus:bg-white transition-colors"
-                        />
+                        <div className="w-10 h-8 flex items-center justify-center font-black text-xs text-blue-600 bg-blue-50/70 rounded-lg border border-blue-200 select-none">
+                          {data.lux}
+                        </div>
                       )}
                     </div>
                   </td>
