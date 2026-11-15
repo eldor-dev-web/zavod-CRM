@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import BazaSinxron from "@/components/BazaSinxron";
 
 export const metadata: Metadata = {
   title: "Zavod CRM",
@@ -15,6 +16,9 @@ export default function RootLayout({
   return (
     <html lang="uz">
       <body className="flex h-screen bg-gray-100 text-gray-900">
+        {/* PostgreSQL baza bilan avtomatik sinxronizatsiya */}
+        <BazaSinxron />
+
         {/* Chap tomonda menyu */}
         <Sidebar />
         
