@@ -20,27 +20,27 @@ model Smena {
 
 // 2. MOSHINA (ApparatCard ma'lumotlari)
 model Moshina {
-  id         String    @id @default(uuid())
+  id         String   @id @default(uuid())
   smenaId    String
-  smena      Smena     @relation(fields: [smenaId], references: [id], onDelete: Cascade)
-  raqam      String    // Moshina nomi/raqami
+  smena      Smena    @relation(fields: [smenaId], references: [id], onDelete: Cascade)
+  raqam      String   // Moshina nomi/raqami
   talimoti   String?
   brend      String?
   ip         String?
   lot        String?
   operator   String?
   operatorId String?
-  rulonlar   Rulon[]   // Bitta moshinada bir nechta rulon chiqadi
+  rulonlar   Rulon[]  // Bitta moshinada bir nechta rulon chiqadi
 }
 
 // 3. RULON (Sifat nazorati va KG)
 model Rulon {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   moshinaId   String
-  moshina     Moshina  @relation(fields: [moshinaId], references: [id], onDelete: Cascade)
-  tartibRaqam Int      // Rulonning qator raqami (1, 2, 3...)
-  kg          Float?   // Rulon og'irligi
-  vaqt        String?  // Chiqqan vaqti
+  moshina     Moshina @relation(fields: [moshinaId], references: [id], onDelete: Cascade)
+  tartibRaqam Int     // Rulonning qator raqami (1, 2, 3...)
+  kg          Float?  // Rulon og'irligi
+  vaqt        String? // Chiqqan vaqti
   
   // Nuqsonlar
   patlak      String?
@@ -48,4 +48,11 @@ model Rulon {
   ignaSiniq   String?
   yogIzi      String?
   kumas       String?
+}
+
+// 4. UNIVERSAL BAZA XOTIRASI (Ishchilar, Davomat, Braklar, Notes va Sozlamalar uchun)
+model TizimXotira {
+  kalit     String   @id // Masalan: "zavod_ishchilar", "zavod_eslatmalar_2026-11"
+  qiymat    Json     // Ichidagi barcha ma'lumotlar (JSON formatda)
+  updatedAt DateTime @updatedAt
 }
