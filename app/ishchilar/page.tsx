@@ -193,7 +193,6 @@ export default function IshchilarSahifasi() {
             <span className="bg-white p-2 rounded-xl shadow-sm border border-slate-200 text-indigo-600"><Icons.Users /></span>
             Ishchilar va Oylik
           </h1>
-          <p className="text-sm text-slate-500 mt-2 font-medium">Yangi oy tanlanganda oldingi oy xodimlari avtomatik nusxalanadi.</p>
         </div>
         <div className="bg-white px-4 py-2.5 rounded-xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-200 flex items-center gap-3">
           <span className="text-slate-400"><Icons.Calendar /></span>
