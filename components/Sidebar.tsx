@@ -157,8 +157,8 @@ export default function Sidebar() {
       {/* 3. ASOSIY YON PANEL */}
       <div
         className={`
-          bg-slate-900 text-slate-300 flex flex-col h-screen shrink-0 border-r border-slate-800/80 z-50 transition-all duration-300
-          fixed md:sticky top-0 left-0
+          bg-slate-900 text-slate-300 flex flex-col h-[100dvh] shrink-0 border-r border-slate-800/80 z-50 transition-all duration-300
+          fixed top-0 left-0 bottom-0 md:sticky md:top-0
           ${mobilOchiq ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
           w-[260px] ${ochiq ? 'md:w-[260px]' : 'md:w-[80px]'}
         `}
@@ -199,7 +199,7 @@ export default function Sidebar() {
         </div>
 
         {/* MENYU BANDLARI */}
-        <nav className="flex-1 px-3 space-y-1.5 mt-4 overflow-x-hidden overflow-y-auto custom-scrollbar">
+       <nav className="flex-1 min-h-0 px-3 space-y-1 mt-2 overflow-x-hidden overflow-y-auto custom-scrollbar">
           {ruxsatEtilganMenyular.map((item, idx) => {
             const faol = pathname === item.manzil;
             const IconComp = item.Icon;
@@ -239,7 +239,7 @@ export default function Sidebar() {
         )}
 
         {/* PROFIL VA CHIQISH QISMI */}
-        <div className="p-3 border-t border-slate-800/80">
+        <div className="p-3 border-t border-slate-800/80" shrink-0>
           <div className={`flex bg-slate-800/60 rounded-2xl border border-slate-700/40 transition-all ${ochiq ? 'items-center justify-between p-3' : 'items-center justify-between p-3 md:flex-col md:p-2 md:gap-2.5'}`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 min-w-[36px] bg-indigo-500/20 border border-indigo-400/30 rounded-xl flex items-center justify-center text-indigo-300 font-black text-sm">
