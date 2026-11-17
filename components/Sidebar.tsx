@@ -89,9 +89,9 @@ export default function Sidebar() {
       if (saqlanganParol) {
         const p = JSON.parse(saqlanganParol);
         setParollar({
-          admin: p.admin || '111111',
-          master: p.master || '222222',
-          kontrolchi: p.kontrolchi || '333333'
+          admin: p.admin?.length === 6 ? p.admin : '111111',
+          master: p.master?.length === 6 ? p.master : '222222',
+          kontrolchi: p.kontrolchi?.length === 6 ? p.kontrolchi : '333333'
         });
       }
     } catch (e) {}
