@@ -53,7 +53,7 @@ export default function Sidebar() {
 
   // Admin uchun Parollarni o'zgartirish oynasi
   const [parolModalOchiq, setParolModalOchiq] = useState(false);
-  const [parollar, setParollar] = useState({ admin: '1111', master: '2222', kontrolchi: '3333' });
+  const [parollar, setParollar] = useState({ admin: '111111', master: '222222', kontrolchi: '333333' });
   const [saqlandiXabar, setSaqlandiXabar] = useState(false);
 
   const barchaMenyular = [
@@ -89,9 +89,9 @@ export default function Sidebar() {
       if (saqlanganParol) {
         const p = JSON.parse(saqlanganParol);
         setParollar({
-          admin: p.admin || '1111',
-          master: p.master || '2222',
-          kontrolchi: p.kontrolchi || '3333'
+          admin: p.admin || '111111',
+          master: p.master || '222222',
+          kontrolchi: p.kontrolchi || '333333'
         });
       }
     } catch (e) {}
@@ -120,9 +120,9 @@ export default function Sidebar() {
 
   const parollarniSaqlash = () => {
     const tozaParollar = {
-      admin: parollar.admin.length === 4 ? parollar.admin : '1111',
-      master: parollar.master.length === 4 ? parollar.master : '2222',
-      kontrolchi: parollar.kontrolchi.length === 4 ? parollar.kontrolchi : '3333'
+      admin: parollar.admin.length === 6 ? parollar.admin : '111111',
+      master: parollar.master.length === 6 ? parollar.master : '222222',
+      kontrolchi: parollar.kontrolchi.length === 6 ? parollar.kontrolchi : '333333'
     };
     setParollar(tozaParollar);
     localStorage.setItem('zavod_parollar', JSON.stringify(tozaParollar));
