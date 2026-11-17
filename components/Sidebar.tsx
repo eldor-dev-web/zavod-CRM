@@ -239,7 +239,7 @@ export default function Sidebar() {
         )}
 
         {/* PROFIL VA CHIQISH QISMI */}
-        <div className="p-3 border-t border-slate-800/80" shrink-0>
+        <div className="p-3 border-t border-slate-800/80 shrink-0">
           <div className={`flex bg-slate-800/60 rounded-2xl border border-slate-700/40 transition-all ${ochiq ? 'items-center justify-between p-3' : 'items-center justify-between p-3 md:flex-col md:p-2 md:gap-2.5'}`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 min-w-[36px] bg-indigo-500/20 border border-indigo-400/30 rounded-xl flex items-center justify-center text-indigo-300 font-black text-sm">
