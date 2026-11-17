@@ -224,7 +224,7 @@ export default function Sidebar() {
 
         {/* ADMIN UCHUN PAROLLARNI BOSHQARISH TUGMASI */}
         {foydalanuvchi.rol === 'admin' && (
-          <div className="px-3 pb-2">
+          <div className="px-3 pb-2 shrink-0">
             <button
               onClick={() => setParolModalOchiq(true)}
               title="PIN-kodlarni oʻzgartirish"
@@ -273,7 +273,7 @@ export default function Sidebar() {
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h3 className="text-base font-black text-slate-900">PIN-kodlarni boshqarish</h3>
-                <p className="text-xs text-slate-400 font-medium">4 xonali kirish parollarini yangilash</p>
+                <p className="text-xs text-slate-400 font-medium">6 xonali kirish parollarini yangilash</p>
               </div>
               <button
                 onClick={() => setParolModalOchiq(false)}
@@ -288,7 +288,7 @@ export default function Sidebar() {
                 <label className="text-xs font-bold text-slate-600 block mb-1">👑 Boshqaruvchi (Admin) PIN-kodi</label>
                 <input
                   type="text"
-                  maxLength={4}
+                  maxLength={6}
                   value={parollar.admin}
                   onChange={(e) => setParollar({ ...parollar, admin: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"
@@ -299,7 +299,7 @@ export default function Sidebar() {
                 <label className="text-xs font-bold text-slate-600 block mb-1">👷‍♂️ Smena Masteri PIN-kodi</label>
                 <input
                   type="text"
-                  maxLength={4}
+                  maxLength={6}
                   value={parollar.master}
                   onChange={(e) => setParollar({ ...parollar, master: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"
@@ -310,7 +310,7 @@ export default function Sidebar() {
                 <label className="text-xs font-bold text-slate-600 block mb-1">🔍 Kontrolchi PIN-kodi</label>
                 <input
                   type="text"
-                  maxLength={4}
+                  maxLength={6}
                   value={parollar.kontrolchi}
                   onChange={(e) => setParollar({ ...parollar, kontrolchi: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"

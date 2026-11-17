@@ -5,9 +5,9 @@ export default function LoginSahifasi() {
   const [pin, setPin] = useState('');
   const [xatolik, setXatolik] = useState('');
   const [parollar, setParollar] = useState({
-    admin: '1111',
-    master: '2222',
-    kontrolchi: '3333'
+    admin: '111111',
+    master: '222222',
+    kontrolchi: '333333'
   });
 
   // Bazadan (localStorage) saqlangan parollarni yuklash
@@ -18,9 +18,9 @@ export default function LoginSahifasi() {
         if (saqlangan) {
           const parsed = JSON.parse(saqlangan);
           setParollar({
-            admin: parsed.admin || '1111',
-            master: parsed.master || '2222',
-            kontrolchi: parsed.kontrolchi || '3333'
+            admin: parsed.admin?.length === 6 ? parsed.admin : '111111',
+            master: parsed.master?.length === 6 ? parsed.master : '222222',
+            kontrolchi: parsed.kontrolchi?.length === 6 ? parsed.kontrolchi : '333333'
           });
         }
       } catch (e) {
@@ -58,14 +58,14 @@ export default function LoginSahifasi() {
   );
 
   useEffect(() => {
-    if (pin.length === 4) {
+    if (pin.length === 6) {
       tekshirish(pin);
     }
   }, [pin, tekshirish]);
 
   const raqamBosish = useCallback((raqam: string) => {
     setPin((prev) => {
-      if (prev.length < 4) {
+      if (prev.length < 6) {
         setXatolik('');
         return prev + raqam;
       }
@@ -109,7 +109,7 @@ export default function LoginSahifasi() {
 
         {/* 2. PIN INDIKATOR NUQTALARI */}
         <div className="flex gap-4 mb-6">
-          {[0, 1, 2, 3].map((index) => (
+          {[0, 1, 2, 3, 4, 5].map((index) => (
             <div
               key={index}
               className={`w-4 h-4 rounded-full transition-all duration-200 ${
