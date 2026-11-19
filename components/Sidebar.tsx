@@ -51,10 +51,12 @@ export default function Sidebar() {
   const [ochiq, setOchiq] = useState(true);
   const [mobilOchiq, setMobilOchiq] = useState(false);
 
-  // Admin uchun Parollarni o'zgartirish oynasi
+  // Admin uchun PIN-kodlarni o'zgartirish oynasi (PIN-kodlar faqat serverda saqlanadi)
   const [parolModalOchiq, setParolModalOchiq] = useState(false);
-  const [parollar, setParollar] = useState({ admin: '111111', master: '222222', kontrolchi: '333333' });
+  const [parollar, setParollar] = useState({ admin: '', master: '', kontrolchi: '' });
   const [saqlandiXabar, setSaqlandiXabar] = useState(false);
+  const [parolXatosi, setParolXatosi] = useState('');
+  const [parolSaqlanmoqda, setParolSaqlanmoqda] = useState(false);
 
   const barchaMenyular = [
     { nomi: 'Asosiy Panel', manzil: '/', ruxsat: ['admin'], Icon: MenuIcons.Dashboard },
@@ -83,18 +85,8 @@ export default function Sidebar() {
     const user = JSON.parse(saqlanganUser);
     setFoydalanuvchi(user);
 
-    // Saqlangan parollarni o'qish
-    try {
-      const saqlanganParol = localStorage.getItem('zavod_parollar');
-      if (saqlanganParol) {
-        const p = JSON.parse(saqlanganParol);
-        setParollar({
-          admin: p.admin?.length === 6 ? p.admin : '111111',
-          master: p.master?.length === 6 ? p.master : '222222',
-          kontrolchi: p.kontrolchi?.length === 6 ? p.kontrolchi : '333333'
-        });
-      }
-    } catch (e) {}
+    // Eski versiyadan qolgan ochiq PIN-kodlarni brauzerdan o'chirib tashlaymiz
+    localStorage.removeItem('zavod_parollar');
 
     const hozirgiSahifa = barchaMenyular.find((m) => m.manzil === pathname);
     if (hozirgiSahifa && !hozirgiSahifa.ruxsat.includes(user.rol)) {
@@ -112,25 +104,61 @@ export default function Sidebar() {
     ? barchaMenyular.filter((item) => item.ruxsat.includes(foydalanuvchi.rol))
     : [];
 
-  const tizimdanChiqish = () => {
+  const tizimdanChiqish = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
     localStorage.removeItem('zavod_foydalanuvchi');
-    document.cookie = 'zavod_rol=; path=/; max-age=0';
     window.location.href = '/login';
   };
 
-  const parollarniSaqlash = () => {
-    const tozaParollar = {
-      admin: parollar.admin.length === 6 ? parollar.admin : '111111',
-      master: parollar.master.length === 6 ? parollar.master : '222222',
-      kontrolchi: parollar.kontrolchi.length === 6 ? parollar.kontrolchi : '333333'
-    };
-    setParollar(tozaParollar);
-    localStorage.setItem('zavod_parollar', JSON.stringify(tozaParollar));
-    setSaqlandiXabar(true);
-    setTimeout(() => {
-      setSaqlandiXabar(false);
-      setParolModalOchiq(false);
-    }, 900);
+  const parolModaliniOchish = async () => {
+    setParolXatosi('');
+    setSaqlandiXabar(false);
+    setParolModalOchiq(true);
+    try {
+      const res = await fetch('/api/auth/pin', { cache: 'no-store' });
+      if (res.ok) setParollar(await res.json());
+      else setParolXatosi('PIN-kodlarni yuklab bo\'lmadi');
+    } catch {
+      setParolXatosi('Serverga ulanib bo\'lmadi');
+    }
+  };
+
+  const parollarniSaqlash = async () => {
+    setParolXatosi('');
+    const { admin, master, kontrolchi } = parollar;
+    if (![admin, master, kontrolchi].every((p) => /^\d{6}$/.test(p))) {
+      setParolXatosi('Har bir PIN-kod aynan 6 ta raqam bo\'lishi kerak');
+      return;
+    }
+    if (new Set([admin, master, kontrolchi]).size !== 3) {
+      setParolXatosi('PIN-kodlar bir-biridan farq qilishi kerak');
+      return;
+    }
+
+    setParolSaqlanmoqda(true);
+    try {
+      const res = await fetch('/api/auth/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parollar)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setParolXatosi(data.xato || 'Saqlab bo\'lmadi');
+        return;
+      }
+      setSaqlandiXabar(true);
+      setTimeout(() => {
+        setSaqlandiXabar(false);
+        setParolModalOchiq(false);
+      }, 900);
+    } catch {
+      setParolXatosi('Serverga ulanib bo\'lmadi');
+    } finally {
+      setParolSaqlanmoqda(false);
+    }
   };
 
   if (pathname === '/login') return null;
@@ -226,7 +254,7 @@ export default function Sidebar() {
         {foydalanuvchi.rol === 'admin' && (
           <div className="px-3 pb-2 shrink-0">
             <button
-              onClick={() => setParolModalOchiq(true)}
+              onClick={parolModaliniOchish}
               title="PIN-kodlarni oʻzgartirish"
               className={`w-full flex items-center rounded-xl text-xs font-bold bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/50 transition-all ${
                 ochiq ? 'gap-2.5 px-3.5 py-2.5 justify-start' : 'gap-2.5 px-3.5 py-2.5 md:justify-center md:px-0'
@@ -318,11 +346,18 @@ export default function Sidebar() {
               </div>
             </div>
 
+            {parolXatosi && (
+              <div className="mb-3 px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-600 text-xs font-bold">
+                {parolXatosi}
+              </div>
+            )}
+
             <button
               onClick={parollarniSaqlash}
-              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm shadow-md shadow-indigo-500/20 transition-all"
+              disabled={parolSaqlanmoqda}
+              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-black text-xs sm:text-sm shadow-md shadow-indigo-500/20 transition-all"
             >
-              {saqlandiXabar ? '✓ Bazaga saqlandi!' : 'Parollarni saqlash'}
+              {saqlandiXabar ? '✓ Bazaga saqlandi!' : parolSaqlanmoqda ? 'Saqlanmoqda...' : 'Parollarni saqlash'}
             </button>
           </div>
         </div>

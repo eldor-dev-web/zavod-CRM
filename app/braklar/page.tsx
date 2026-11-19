@@ -2,48 +2,29 @@
 import React, { useState, useEffect } from 'react';
 import BraklarJadvali from '@/components/BraklarJadvali';
 import AvansBloknot from '@/components/AvanstBloknot.';
+import { brakHisobi, faolIshchilar, oyKunlariSoni, operatormi, KALIT, STANDART_BRAK_STAVKALARI, type Ishchi } from '@/lib/hisob';
+import { oyIshchilari } from '@/lib/mahalliyXotira';
+import { toshkentOy } from '@/lib/sana';
 
 export default function BraklarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
   
-  const [brakStavkalari, setBrakStavkalari] = useState({
-    ignaSinigi: 8000, 
-    luxXatosi: 10000   
-  });
-  
-  const [ishchilarBazasi, setIshchilarBazasi] = useState<any[]>([]);
+  const [brakStavkalari, setBrakStavkalari] = useState(STANDART_BRAK_STAVKALARI);
+
+  const [ishchilarBazasi, setIshchilarBazasi] = useState<Ishchi[]>([]);
+  const [barchaIshchilar, setBarchaIshchilar] = useState<Ishchi[]>([]);
   const [brakMaqomlari, setBrakMaqomlari] = useState<Record<string, any>>({});
   const [operatorIsmlari, setOperatorIsmlari] = useState<Record<string, string>>({});
   
   const [tanlanganOperatorId, setTanlanganOperatorId] = useState<any | null>(null);
   const [yangilanmoqda, setYangilanmoqda] = useState(false);
 
-  const filtrlashOperatorlarni = (barchaXodimlar: any[]) => {
-    let aniqLavozimNomi = 'Operator';
-    try {
-      const lavozimlar = JSON.parse(localStorage.getItem('zavod_lavozimlar_bazasi') || '[]');
-      const topilganOperator = lavozimlar.find((l: any) => String(l.nomi).toLowerCase() === 'operator');
-      if (topilganOperator) aniqLavozimNomi = topilganOperator.nomi;
-    } catch (e) { console.error(e); }
-
-    return barchaXodimlar.filter((x: any) => {
-      if (!x) return false;
-      const lavozim = String(x.lavozim || x.mutaxassislik || x.rol || '').trim();
-      const textHolati = JSON.stringify(x).toLowerCase();
-      return (lavozim === aniqLavozimNomi || lavozim.toLowerCase() === 'operator' || textHolati.includes('operat') || textHolati.includes('операт'));
-    });
-  };
-
   const malumotlarniYuklash = (oy: string) => {
-    const xodimlarStr = localStorage.getItem(`zavod_ishchilar_${oy}`) || localStorage.getItem('zavod_ishchilar_bazasi');
-    if (xodimlarStr) {
-      try {
-        const barchaXodimlar = JSON.parse(xodimlarStr);
-        setIshchilarBazasi(filtrlashOperatorlarni(barchaXodimlar));
-      } catch (e) { setIshchilarBazasi([]); }
-    } else { setIshchilarBazasi([]); }
+    const xodimlar = faolIshchilar(oyIshchilari(oy));
+    setBarchaIshchilar(xodimlar);
+    setIshchilarBazasi(xodimlar.filter(operatormi));
 
-    const saqlanganBraklar = localStorage.getItem(`zavod_brak_jadval_${oy}`);
+    const saqlanganBraklar = localStorage.getItem(KALIT.brakJadvali(oy));
     if (saqlanganBraklar) {
       try { setBrakMaqomlari(JSON.parse(saqlanganBraklar)); } catch (e) { setBrakMaqomlari({}); }
     } else { setBrakMaqomlari({}); }
@@ -55,8 +36,7 @@ export default function BraklarSahifasi() {
   };
 
   useEffect(() => {
-    const saqlanganOy = localStorage.getItem('zavod_joriy_hisobot_oyi');
-    const hozirgiOy = saqlanganOy || new Date().toISOString().slice(0, 7);
+    const hozirgiOy = toshkentOy();
     setTanlanganOy(hozirgiOy);
 
     const saqlanganNarxlar = localStorage.getItem('zavod_brak_stavkalari');
@@ -70,7 +50,6 @@ export default function BraklarSahifasi() {
   const oyniOzgartirish = (yangiOy: string) => {
     setTanlanganOy(yangiOy);
     setTanlanganOperatorId(null);
-    localStorage.setItem('zavod_joriy_hisobot_oyi', yangiOy);
     malumotlarniYuklash(yangiOy);
   };
 
@@ -87,13 +66,7 @@ export default function BraklarSahifasi() {
     }, 600);
   };
 
-  const getOyKunlariSoni = () => {
-    if (!tanlanganOy) return 30;
-    const [yil, oy] = tanlanganOy.split('-').map(Number);
-    return new Date(yil, oy, 0).getDate();
-  };
-
-  const kunlarMassivi = Array.from({ length: getOyKunlariSoni() }, (_, i) => i + 1);
+  const kunlarMassivi = Array.from({ length: tanlanganOy ? oyKunlariSoni(tanlanganOy) : 30 }, (_, i) => i + 1);
 
   const qiymatniOzgartirish = (ishchiId: any, kun: number, field: 'igna' | 'lux', val: any) => {
     const kalit = `${ishchiId}_${kun}`;
@@ -101,7 +74,7 @@ export default function BraklarSahifasi() {
     const numVal = val === '' ? '' : Number(String(val).replace(/\D/g, ''));
     const updated = { ...brakMaqomlari, [kalit]: { igna: current.igna ?? '', lux: current.lux ?? '', [field]: numVal } };
     setBrakMaqomlari(updated);
-    localStorage.setItem(`zavod_brak_jadval_${tanlanganOy}`, JSON.stringify(updated));
+    localStorage.setItem(KALIT.brakJadvali(tanlanganOy), JSON.stringify(updated));
   };
 
   const operatorIsminiOzgartirish = (ishchiId: any, yangiIsm: string) => {
@@ -110,17 +83,10 @@ export default function BraklarSahifasi() {
     localStorage.setItem(`zavod_brak_ismlar_${tanlanganOy}`, JSON.stringify(updated));
   };
 
+  // Umumiy hisob faylidan (Telegram bot ham xuddi shunday hisoblaydi)
   const operatorBrakHisobi = (ishchiId: any) => {
-    let jamiIgna = 0, jamiLux = 0;
-    kunlarMassivi.forEach(kun => {
-      const data = brakMaqomlari[`${ishchiId}_${kun}`];
-      if (data) {
-        if (data.igna !== '' && data.igna !== undefined && !isNaN(Number(data.igna))) jamiIgna += Number(data.igna);
-        if (data.lux !== '' && data.lux !== undefined && !isNaN(Number(data.lux))) jamiLux += Number(data.lux);
-      }
-    });
-    const summa = (jamiIgna * brakStavkalari.ignaSinigi) + (jamiLux * brakStavkalari.luxXatosi);
-    return { jamiIgna, jamiLux, summa };
+    const b = brakHisobi(ishchiId, tanlanganOy, brakMaqomlari, brakStavkalari);
+    return { jamiIgna: b.igna, jamiLux: b.lux, summa: b.jarima };
   };
 
   const brakBorOperatorlar = ishchilarBazasi.map(ishchi => {
@@ -247,7 +213,7 @@ export default function BraklarSahifasi() {
                         {item.jamiLux > 0 ? `${item.jamiLux} m` : '—'}
                       </td>
                       <td className="p-2.5 sm:p-3.5 text-right font-black text-slate-900 whitespace-nowrap">
-                        {item.summa.toLocaleString()}
+                        {item.summa.toLocaleString('ru-RU')}
                       </td>
                     </tr>
                   );
@@ -289,10 +255,10 @@ export default function BraklarSahifasi() {
           <svg className="w-4 h-4 text-blue-200" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
           </svg>
-          <span className="font-black text-xs sm:text-base">{umumiyJarimaSummasi.toLocaleString()} <span className="text-[10px] font-bold text-blue-200">so'm</span></span>
+          <span className="font-black text-xs sm:text-base">{umumiyJarimaSummasi.toLocaleString('ru-RU')} <span className="text-[10px] font-bold text-blue-200">so'm</span></span>
         </div>
       </div>
-        <AvansBloknot tanlanganOy={tanlanganOy} ishchilar={brakBorOperatorlar} />
+      <AvansBloknot tanlanganOy={tanlanganOy} ishchilar={barchaIshchilar} />
     </div>
   );
 }

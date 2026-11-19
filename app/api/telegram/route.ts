@@ -1,213 +1,187 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import {
+  ishchiOyligi,
+  jsonOchish,
+  KALIT,
+  pulFormat,
+  son,
+  STANDART_BRAK_STAVKALARI,
+  STANDART_LAVOZIMLAR,
+  STANDART_OPERATOR_QOSHIMCHA,
+  faolIshchilar,
+  type Ishchi,
+  type OylikManbalari
+} from '@/lib/hisob';
+import { oldingiOy, toshkentOy } from '@/lib/sana';
 
-// Bazadan kalit bo'yicha JSON ma'lumotni o'qish
-async function xotiradanOlish(kalit: string, defaultQiymat: any = null) {
+// Raqam so'raydigan doimiy tugma (har safar bosib oylikni ko'rish mumkin)
+const RAQAM_TUGMASI = {
+  keyboard: [[{ text: '📱 Oylik hisobotni ko\'rish', request_contact: true }]],
+  resize_keyboard: true
+};
+
+// Bazadan o'qish. Brauzer ma'lumotlarni matn ko'rinishida saqlaydi, shuning uchun jsonOchish bilan ochamiz.
+async function xotiradanOlish<T>(kalit: string, standart: T): Promise<T> {
   try {
     const qator = await prisma.tizimXotira.findUnique({ where: { kalit } });
-    if (!qator || qator.qiymat === null || qator.qiymat === undefined) return defaultQiymat;
-    
-    // Agar JSON formatda bo'lsa, o'zi qaytaradi
-    return qator.qiymat;
-  } catch {
-    return defaultQiymat;
-  }
-}
-
-// Bazaga saqlash
-async function xotiragaYozish(kalit: string, qiymat: any) {
-  try {
-    await prisma.tizimXotira.upsert({
-      where: { kalit },
-      update: { qiymat },
-      create: { kalit, qiymat }
-    });
+    return jsonOchish<T>(qator?.qiymat, standart);
   } catch (err) {
-    console.error('Xotiraga yozish xatosi:', err);
+    console.error(`Bazadan o'qib bo'lmadi (${kalit}):`, err);
+    return standart;
   }
 }
 
-// Telefon raqamning oxirgi 9 ta raqamini ajratib olish (masalan: +998 90 123 45 67 -> 901234567)
-function raqamniTozalash(tel: string) {
-  const faqatRaqam = String(tel || '').replace(/\D/g, '');
-  return faqatRaqam.slice(-9);
+// Telefon raqamning oxirgi 9 ta raqami (+998 90 123 45 67 -> 901234567)
+function raqamniTozalash(tel: unknown) {
+  return String(tel ?? '').replace(/\D/g, '').slice(-9);
 }
 
-// Telegramga xabar yuborish
-async function telegramXabarYuborish(token: string, chatId: number | string, text: string, replyMarkup?: any) {
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: 'HTML',
-      ...(replyMarkup ? { reply_markup: replyMarkup } : {})
-    })
-  });
+// Telegram HTML uchun maxsus belgilarni xavfsiz qilish
+function htmlXavfsiz(matn: unknown) {
+  return String(matn ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Xodimning oylik hisobot matnini tuzish (Faqat > 0 bo'lgan qatorlar qo'shiladi)
-async function hisobotMatniniTuzish(ishchi: any, joriyOy: string) {
-  const davomat = (await xotiradanOlish('zavod_xodim_davomati', {})) || {};
-  const lavozimlar = (await xotiradanOlish('zavod_lavozimlar_bazasi', [
-    { id: 1, nomi: 'Operator', stavka: 175000 },
-    { id: 2, nomi: 'Master 1', stavka: 220000 }
-  ])) || [];
-  const operatorQoshimcha = Number(await xotiradanOlish('zavod_operator_qoshimcha', 20000)) || 20000;
-  const brakNarxi = Number(await xotiradanOlish('zavod_brak_jarima_narxi', 10000)) || 10000;
-  const brakJadvali = (await xotiradanOlish('zavod_brak_jadvali', {})) || {};
-  const eslatmalar = String((await xotiradanOlish(`zavod_eslatmalar_${joriyOy}`, '')) || '');
-
-  const [yil, oy] = joriyOy.split('-').map(Number);
-  const kunlarSoni = new Date(yil, oy, 0).getDate();
-
-  // 1. Ishlagan kun va moshina soni
-  let jamiKun = 0;
-  let jamiMoshina = 0;
-  for (let kun = 1; kun <= kunlarSoni; kun++) {
-    const d = davomat[`${ishchi.id}_${joriyOy}_${kun}`];
-    if (d) {
-      if (d.status === '+') jamiKun += 1;
-      if (d.moshina !== '' && !isNaN(Number(d.moshina))) jamiMoshina += Number(d.moshina);
-    }
-  }
-
-  // 2. Stavka va lavozim
-  const lavozimNomi = String(ishchi.lavozimi || '');
-  const isOperator = lavozimNomi.toLowerCase().includes('operator');
-  const topilganLavozim = Array.isArray(lavozimlar)
-    ? lavozimlar.find((l: any) => String(l.nomi).toLowerCase() === lavozimNomi.toLowerCase())
-    : null;
-  const stavka = topilganLavozim ? Number(topilganLavozim.stavka) || 0 : 0;
-
-  // 3. Brak (Faqat operator uchun)
-  let brakKg = 0;
-  if (isOperator && ishchi.ism) {
-    const tozaIsm = ishchi.ism.trim();
-    for (let kun = 1; kun <= kunlarSoni; kun++) {
-      const q = brakJadvali[`${tozaIsm}_${joriyOy}_${kun}`];
-      if (q && !isNaN(Number(q))) brakKg += Number(q);
-    }
-  }
-  const brakJarima = brakKg * brakNarxi;
-
-  // 4. Avans (AvansBloknot ichidan ism bo'yicha)
-  let jamiAvans = 0;
-  if (ishchi.ism && eslatmalar.trim()) {
-    const tozaIsm = ishchi.ism.trim().toLowerCase();
-    eslatmalar.split('\n').forEach((qator) => {
-      const sanasiz = qator.replace(/\[\d{1,2}\.\d{1,2}\]/g, '').trim();
-      if (sanasiz.toLowerCase().includes(tozaIsm)) {
-        const raqamlar = sanasiz.match(/\b\d{1,3}(?:[ ,]\d{3})+\b|\b\d{4,9}\b/g);
-        if (raqamlar) {
-          raqamlar.forEach((r) => {
-            const son = Number(r.replace(/\D/g, ''));
-            if (son >= 1000) jamiAvans += son;
-          });
-        }
-      }
+async function telegramXabarYuborish(token: string, chatId: number | string, text: string, replyMarkup?: unknown) {
+  try {
+    const javob = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {})
+      })
     });
+    if (!javob.ok) console.error('Telegram sendMessage xatosi:', javob.status, await javob.text());
+  } catch (err) {
+    console.error('Telegramga ulanib bo\'lmadi:', err);
   }
+}
 
-  // 5. Yakuniy sof oylik
-  const hisoblanganOylik = jamiKun * stavka + (isOperator ? jamiMoshina * operatorQoshimcha : 0);
-  const sofOylik = hisoblanganOylik - brakJarima - jamiAvans;
+async function oyIshchilari(oy: string): Promise<Ishchi[]> {
+  return faolIshchilar(await xotiradanOlish<unknown>(KALIT.ishchilar(oy), []));
+}
 
-  // 6. Xabar matnini yig'ish (Faqat bor narsalargina qo'shiladi!)
-  const qatorlar: string[] = [
-    `👤 <b>${ishchi.ism}</b> (${lavozimNomi || 'Xodim'})`,
-    `📅 <b>Oy:</b> ${joriyOy}`,
-    ``
+async function oylikManbalari(oy: string): Promise<OylikManbalari> {
+  const [davomat, lavozimlar, qoshimcha, brakJadvali, brakStavkalari, eslatmalar] = await Promise.all([
+    xotiradanOlish(KALIT.davomat, {}),
+    xotiradanOlish(KALIT.lavozimlar, STANDART_LAVOZIMLAR),
+    xotiradanOlish<unknown>(KALIT.operatorQoshimcha, STANDART_OPERATOR_QOSHIMCHA),
+    xotiradanOlish(KALIT.brakJadvali(oy), {}),
+    xotiradanOlish(KALIT.brakStavkalari, STANDART_BRAK_STAVKALARI),
+    xotiradanOlish<unknown>(KALIT.eslatmalar(oy), '')
+  ]);
+  return {
+    davomat,
+    lavozimlar: Array.isArray(lavozimlar) ? lavozimlar : STANDART_LAVOZIMLAR,
+    operatorQoshimcha: qoshimcha === null || qoshimcha === '' ? STANDART_OPERATOR_QOSHIMCHA : son(qoshimcha),
+    brakJadvali,
+    brakStavkalari: { ...STANDART_BRAK_STAVKALARI, ...brakStavkalari },
+    eslatmalar: String(eslatmalar ?? '')
+  };
+}
+
+// Hisobot matni (faqat 0 dan katta qatorlar chiqadi)
+async function hisobotMatni(ishchi: Ishchi, oy: string) {
+  const o = ishchiOyligi(ishchi, oy, await oylikManbalari(oy));
+
+  const qatorlar = [
+    `👤 <b>${htmlXavfsiz(ishchi.ism)}</b> (${htmlXavfsiz(o.lavozim || 'Xodim')})`,
+    `📅 <b>Oy:</b> ${oy}`,
+    '',
+    `• <b>Ishlagan kuni:</b> ${o.jamiKun} kun`
   ];
-
-  qatorlar.push(`• <b>Ishlagan kuni:</b> ${jamiKun} kun`);
-
-  if (isOperator && jamiMoshina > 0) {
-    qatorlar.push(`• <b>Moshina:</b> ${jamiMoshina} ta`);
+  if (o.operator && o.jamiMoshina > 0) qatorlar.push(`• <b>Qo'shimcha moshina:</b> ${o.jamiMoshina} ta`);
+  if (o.hisoblangan > 0) qatorlar.push(`• <b>Hisoblangan:</b> ${pulFormat(o.hisoblangan)} UZS`);
+  if (o.brakJarima > 0) {
+    const metrlar = [o.brakIgna > 0 ? `igna ${o.brakIgna} m` : '', o.brakLux > 0 ? `lux ${o.brakLux} m` : '']
+      .filter(Boolean)
+      .join(', ');
+    qatorlar.push(`• <b>Brak jarimasi:</b> -${pulFormat(o.brakJarima)} UZS (${metrlar})`);
   }
-
-  if (isOperator && brakKg > 0) {
-    qatorlar.push(`• <b>Brak:</b> ${brakKg} kg (-${brakJarima.toLocaleString()} UZS)`);
-  }
-
-  if (jamiAvans > 0) {
-    qatorlar.push(`• <b>Olingan avans:</b> -${jamiAvans.toLocaleString()} UZS`);
-  }
-
-  qatorlar.push(``);
-  qatorlar.push(`💵 <b>Oylik: ${sofOylik.toLocaleString()} UZS</b>`);
+  if (o.avans > 0) qatorlar.push(`• <b>Olingan avans:</b> -${pulFormat(o.avans)} UZS`);
+  qatorlar.push('', `💵 <b>Qo'lga tegadi: ${pulFormat(o.sof)} UZS</b>`);
 
   return qatorlar.join('\n');
 }
 
-// TELEGRAM WEBHOOK (Faqat ishchi /start bosganda yoki raqam yuborganda ishlaydi)
+// Ishchini raqami bo'yicha topish: avval joriy oy, topilmasa o'tgan oy
+async function ishchiVaOyniTopish(tozaTel: string): Promise<{ ishchi: Ishchi; oy: string } | null> {
+  const joriy = toshkentOy();
+  const oldingi = oldingiOy(joriy);
+  const mos = (i: Ishchi) => raqamniTozalash(i.telefon) === tozaTel;
+
+  const joriyIshchi = (await oyIshchilari(joriy)).find(mos);
+  if (joriyIshchi) return { ishchi: joriyIshchi, oy: joriy };
+
+  const oldingiIshchi = (await oyIshchilari(oldingi)).find(mos);
+  if (!oldingiIshchi) return null;
+
+  // Yangi oy ro'yxati hali saqlanmagan bo'lsa ham, shu oyda davomat bo'lsa joriy oyni ko'rsatamiz
+  const joriyManbalar = await oylikManbalari(joriy);
+  const joriyOylik = ishchiOyligi(oldingiIshchi, joriy, joriyManbalar);
+  return { ishchi: oldingiIshchi, oy: joriyOylik.jamiKun > 0 ? joriy : oldingi };
+}
+
+// TELEGRAM WEBHOOK
+// Ishchi har safar raqamini tugma orqali yuboradi -> hisobot qaytadi. Bazaga hech narsa yozilmaydi.
 export async function POST(req: Request) {
+  // So'rov haqiqatan Telegramdan kelganini tekshirish (.env da TELEGRAM_WEBHOOK_SECRET bo'lsa)
+  const webhookSiri = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (webhookSiri && req.headers.get('x-telegram-bot-api-secret-token') !== webhookSiri) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const message = body?.message;
-    if (!message) return NextResponse.json({ ok: true });
+    if (!message?.chat || message.chat.type !== 'private') return NextResponse.json({ ok: true });
 
     const token =
-      process.env.TELEGRAM_BOT_TOKEN ||
-      String((await xotiradanOlish('zavod_telegram_bot_token', '')) || '').trim();
-
+      process.env.TELEGRAM_BOT_TOKEN || String(await xotiradanOlish<unknown>('zavod_telegram_bot_token', '')).trim();
     if (!token) return NextResponse.json({ ok: false, error: 'Bot token topilmadi' });
 
     const chatId = message.chat.id;
-    const text = String(message.text || '').trim();
     const contact = message.contact;
 
-    const joriyOy = new Date().toISOString().slice(0, 7);
-    const ishchilarKaliti = `zavod_ishchilar_${joriyOy}`;
-    const ishchilar: any[] = (await xotiradanOlish(ishchilarKaliti, [])) || [];
+    // 1-HOLAT: Ishchi telefon raqamini yuborgan
+    if (contact?.phone_number) {
+      // Faqat O'Z raqamini qabul qilamiz (boshqa odamning kontaktini emas)
+      if (!message.from || contact.user_id !== message.from.id) {
+        await telegramXabarYuborish(
+          token,
+          chatId,
+          `Iltimos, boshqa odamning kontaktini emas, pastdagi tugma orqali <b>o'z raqamingizni</b> yuboring.`,
+          RAQAM_TUGMASI
+        );
+        return NextResponse.json({ ok: true });
+      }
 
-    // 1-HOLAT: Ishchi telefon raqamini (Contact) yuborgan bo'lsa
-    if (contact && contact.phone_number) {
-      const yuborilganTel = raqamniTozalash(contact.phone_number);
-      const topilganIndex = ishchilar.findIndex(
-        (i: any) => i.telefon && raqamniTozalash(i.telefon) === yuborilganTel && yuborilganTel.length === 9
-      );
+      const tozaTel = raqamniTozalash(contact.phone_number);
+      const topildi = tozaTel.length === 9 ? await ishchiVaOyniTopish(tozaTel) : null;
 
-      if (topilganIndex !== -1) {
-        ishchilar[topilganIndex].telegramChatId = String(chatId);
-        await xotiragaYozish(ishchilarKaliti, ishchilar);
-
-        const hisobot = await hisobotMatniniTuzish(ishchilar[topilganIndex], joriyOy);
-        await telegramXabarYuborish(token, chatId, hisobot, { remove_keyboard: true });
+      if (topildi) {
+        await telegramXabarYuborish(token, chatId, await hisobotMatni(topildi.ishchi, topildi.oy), RAQAM_TUGMASI);
       } else {
         await telegramXabarYuborish(
           token,
           chatId,
-          `Raqamingiz tizimdan topilmadi. Iltimos, raqamingizni Ishchilar bo'limiga kiritish uchun rahbarga murojaat qiling.`,
-          { remove_keyboard: true }
+          'Raqamingiz tizimdan topilmadi. Raqamingizni Ishchilar bo\'limiga kiritish uchun rahbarga murojaat qiling.',
+          RAQAM_TUGMASI
         );
       }
       return NextResponse.json({ ok: true });
     }
 
-    // 2-HOLAT: Ishchi /start bosgan bo'lsa
-    if (text === '/start') {
-      const topilganIshchi = ishchilar.find((i: any) => String(i.telegramChatId) === String(chatId));
-
-      if (topilganIshchi) {
-        const hisobot = await hisobotMatniniTuzish(topilganIshchi, joriyOy);
-        await telegramXabarYuborish(token, chatId, hisobot);
-      } else {
-        // Agar birinchi marta kirayotgan bo'lsa, telefon raqamini tugma orqali so'raymiz
-        await telegramXabarYuborish(
-          token,
-          chatId,
-          `Oylik hisobotingizni ko'rish uchun pastdagi tugmani bosib telefon raqamingizni tasdiqlang:`,
-          {
-            keyboard: [[{ text: '📱 Telefon raqamni tasdiqlash', request_contact: true }]],
-            resize_keyboard: true,
-            one_time_keyboard: true
-          }
-        );
-      }
-    }
-
+    // 2-HOLAT: /start yoki boshqa har qanday xabar -> raqam so'raymiz
+    await telegramXabarYuborish(
+      token,
+      chatId,
+      'Oylik hisobotingizni ko\'rish uchun pastdagi tugmani bosib telefon raqamingizni tasdiqlang:',
+      RAQAM_TUGMASI
+    );
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Telegram webhook xatosi:', error);

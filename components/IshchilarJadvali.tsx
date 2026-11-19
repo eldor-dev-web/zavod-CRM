@@ -5,13 +5,11 @@ export default function IshchilarJadvali({
   davomat,
   tanlanganOy,
   kunlarMassivi,
-  operatorQoshimchaPuli,
   xodimniTahrirlash,
   yangiXodimQoshish,
   statusniOzgartirish,
   moshinaSoniniOzgartirish,
-  statistikaniHisoblash,
-  stavkaniTopish
+  oylikniHisoblash
 }: any) {
   const [fokusKun, setFokusKun] = useState<number | null>(null);
 
@@ -81,13 +79,10 @@ export default function IshchilarJadvali({
 
           <tbody className="text-sm">
             {faolIshchilar.map((ishchi: any, index: number) => {
-              const { jamiKun, jamiMoshina } = statistikaniHisoblash(ishchi.id);
-              const stavka = stavkaniTopish(ishchi.lavozimi);
-
-              const isOperator = String(ishchi.lavozimi).toLowerCase().includes('operator');
-              const asosiyOylik = jamiKun * stavka;
-              const qoshimchaMoshinaOyligi = isOperator ? jamiMoshina * operatorQoshimchaPuli : 0;
-              const jamiOylik = asosiyOylik + qoshimchaMoshinaOyligi;
+              const oylik = oylikniHisoblash(ishchi);
+              const { jamiKun, jamiMoshina } = oylik;
+              const isOperator = oylik.operator;
+              const jamiOylik = oylik.hisoblangan;
 
               return (
                 <tr key={ishchi.id} className="hover:bg-slate-100 transition-colors bg-white group border-b border-slate-300">
@@ -214,7 +209,7 @@ export default function IshchilarJadvali({
                   <td className="p-3 text-right font-black text-emerald-800 bg-emerald-50 text-sm align-middle">
                     <div className="flex flex-col items-end">
                       {jamiOylik > 0 ? (
-                        <span>{jamiOylik.toLocaleString()} <span className="text-[10px] text-emerald-600 font-bold">UZS</span></span>
+                        <span>{jamiOylik.toLocaleString('ru-RU')} <span className="text-[10px] text-emerald-600 font-bold">UZS</span></span>
                       ) : (
                         <span className="text-slate-400 font-bold">—</span>
                       )}

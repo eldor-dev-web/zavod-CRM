@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { faolIshchilar, KALIT } from '@/lib/hisob';
+import { oyIshchilari } from '@/lib/mahalliyXotira';
+import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
 
 export function useRulonlar() {
   const [moshinalar, setMoshinalar] = useState<any[]>([]);
@@ -24,7 +27,7 @@ export function useRulonlar() {
     if (saqlanganSana) {
       setSana(saqlanganSana);
     } else {
-      setSana(new Date().toISOString().split('T')[0]);
+      setSana(toshkentSana());
     }
 
     if (saqlanganSmena) {
@@ -112,8 +115,9 @@ export function useRulonlar() {
               setMoshinalar(yangiMoshinalar);
               setMoshinaMaqotlari(yangiMaqotlar);
 
+              // "smena" nomi bilan saqlaymiz: Dashboard va arxiv shu nomdan o'qiydi
               localStorage.setItem(localKey, JSON.stringify({
-                  sana, smenaTuri, kontrolchi: data.smena.kontrolchi, master: data.smena.master, moshinalar: data.smena.moshinalar
+                  sana, smena: smenaTuri, kontrolchi: data.smena.kontrolchi, master: data.smena.master, moshinalar: data.smena.moshinalar
               }));
             }
           }
@@ -170,9 +174,9 @@ export function useRulonlar() {
     if (!sana || !isInitialized) return;
     const joriyYilOy = sana.slice(0, 7);
     const kun = Number(sana.split('-')[2]);
-    const ishchilarBazasi = JSON.parse(localStorage.getItem(`zavod_ishchilar_${joriyYilOy}`) || localStorage.getItem('zavod_ishchilar_bazasi') || '[]');
+    const ishchilarBazasi = faolIshchilar(oyIshchilari(joriyYilOy));
 
-    const meyyorlar = JSON.parse(localStorage.getItem('zavod_brak_meyyori') || '{"igna": 0, "lux": 0}');
+    const meyyorlar = JSON.parse(localStorage.getItem(KALIT.brakMeyyori) || '{"igna": 0, "lux": 0}');
     const ignaMeyyor = Number(meyyorlar.igna) || 0;
     const luxMeyyor = Number(meyyorlar.lux) || 0;
 
@@ -212,7 +216,7 @@ export function useRulonlar() {
 
     const shadowKey = `zavod_brak_shadow_${sana}_${smenaTuri}`;
     const oldingiBraklar = JSON.parse(localStorage.getItem(shadowKey) || '{}');
-    const brakXotiraNomi = `zavod_brak_jadval_${joriyYilOy}`;
+    const brakXotiraNomi = KALIT.brakJadvali(joriyYilOy);
     const brakTable = JSON.parse(localStorage.getItem(brakXotiraNomi) || '{}');
 
     Object.keys(oldingiBraklar).forEach(kalit => {
@@ -256,8 +260,7 @@ export function useRulonlar() {
   const yangiSmenagaOtish = () => {
     if (smenaTuri.includes('DEN')) { setSmenaTuri('NOCH (Tungi)'); } 
     else {
-      const joriySana = new Date(sana); joriySana.setDate(joriySana.getDate() + 1);
-      setSana(joriySana.toISOString().split('T')[0]); setSmenaTuri('DEN (Kunduzgi)');
+      setSana(sanagaKunQoshish(sana, 1)); setSmenaTuri('DEN (Kunduzgi)');
     }
   };
 

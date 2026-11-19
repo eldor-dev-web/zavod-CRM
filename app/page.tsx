@@ -1,6 +1,9 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { ishchiOyligi, faolIshchilar, KALIT, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, STANDART_OPERATOR_QOSHIMCHA } from '@/lib/hisob';
+import { oqish } from '@/lib/mahalliyXotira';
+import { sanagaKunQoshish, toshkentOy, toshkentSana } from '@/lib/sana';
 
 const Icons = {
   Wallet: () => (
@@ -77,15 +80,17 @@ export default function AsosiyPanelSahifasi() {
   const malumotlarniAnalizQilish = useCallback((oy: string) => {
     if (!oy) return;
 
-    const ishchilar = JSON.parse(localStorage.getItem(`zavod_ishchilar_${oy}`) || '[]');
-    const davomat = JSON.parse(localStorage.getItem('zavod_xodim_davomati') || '{}');
-    const lavozimlar = JSON.parse(localStorage.getItem('zavod_lavozimlar_bazasi') || '[]');
-    const saqlanganQoshimcha = localStorage.getItem('zavod_operator_qoshimcha');
-    const opQoshimcha = saqlanganQoshimcha !== null ? Number(saqlanganQoshimcha) : 20000;
-
-    const brakStavkalari = JSON.parse(localStorage.getItem('zavod_brak_stavkalari') || '{"ignaSinigi":8000,"luxXatosi":10000}');
-    const brakMeyorlari = JSON.parse(localStorage.getItem('zavod_brak_meyorlari') || '{"ignaMeyor":0,"luxMeyor":0}');
-    const brakJadvali = JSON.parse(localStorage.getItem(`zavod_brak_jadval_${oy}`) || '{}');
+    // Oylik va jarima umumiy hisob faylidan (Ishchilar sahifasi va bot bilan bir xil)
+    const ishchilar = faolIshchilar(oqish(KALIT.ishchilar(oy), []));
+    const saqlanganQoshimcha = localStorage.getItem(KALIT.operatorQoshimcha);
+    const manbalar = {
+      davomat: oqish(KALIT.davomat, {}),
+      lavozimlar: oqish(KALIT.lavozimlar, STANDART_LAVOZIMLAR),
+      operatorQoshimcha: saqlanganQoshimcha !== null ? Number(saqlanganQoshimcha) : STANDART_OPERATOR_QOSHIMCHA,
+      brakJadvali: oqish(KALIT.brakJadvali(oy), {}),
+      brakStavkalari: { ...STANDART_BRAK_STAVKALARI, ...oqish(KALIT.brakStavkalari, {}) },
+      eslatmalar: ''
+    };
 
     let tempOylik = 0;
     let tempJarima = 0;
@@ -96,56 +101,31 @@ export default function AsosiyPanelSahifasi() {
     let maxBrak = 0;
     let worstWorker = '-';
 
-    const tozaIshchilar = Array.isArray(ishchilar) ? ishchilar.filter((i: any) => i.ism && i.ism.trim() !== '') : [];
     const noyobIshchilarMap = new Map();
-    tozaIshchilar.forEach((i: any) => noyobIshchilarMap.set(i.id, i));
+    ishchilar.forEach((i) => noyobIshchilarMap.set(i.id, i));
     const noyobIshchilar = Array.from(noyobIshchilarMap.values());
 
     noyobIshchilar.forEach((ishchi: any) => {
-      let jamiKun = 0, jamiMoshina = 0, ishchiIgna = 0, ishchiLux = 0;
-      for (let i = 1; i <= 31; i++) {
-        const d = davomat[`${ishchi.id}_${oy}_${i}`];
-        if (d && (d.status === '+' || d.holat === '+' || d === '+')) jamiKun += 1;
-        if (d && d.moshina !== '' && d.moshina != null && !isNaN(Number(d.moshina))) jamiMoshina += Number(d.moshina);
-        const b = brakJadvali[`${ishchi.id}_${i}`];
-        if (b) {
-          ishchiIgna += Number(b.igna || 0);
-          ishchiLux += Number(b.lux || 0);
-        }
-      }
+      const o = ishchiOyligi(ishchi, oy, manbalar);
+      tempOylik += o.hisoblangan;
+      tempJarima += o.brakJarima;
+      tempIgna += o.brakIgna;
+      tempLux += o.brakLux;
 
-      const lavozimNomi = String(ishchi.lavozim || ishchi.mutaxassislik || ishchi.rol || ishchi.lavozimi || '').trim();
-      const topildi = lavozimlar.find((l: any) => l.nomi && String(l.nomi).toLowerCase().trim() === lavozimNomi.toLowerCase());
-      const stavka = Number(ishchi.stavka || (topildi ? topildi.stavka : 0)) || 0;
-      const isOperator = lavozimNomi.toLowerCase().includes('operator');
-
-      tempOylik += (jamiKun * stavka) + (isOperator ? jamiMoshina * opQoshimcha : 0);
-      tempIgna += ishchiIgna;
-      tempLux += ishchiLux;
-
-      // Kechirim me'yorini chegirib haqiqiy jarimani hisoblash
-      const jarimaliIgna = Math.max(0, ishchiIgna - Number(brakMeyorlari.ignaMeyor || 0));
-      const jarimaliLux = Math.max(0, ishchiLux - Number(brakMeyorlari.luxMeyor || 0));
-      tempJarima += (jarimaliIgna * Number(brakStavkalari.ignaSinigi || 0)) + (jarimaliLux * Number(brakStavkalari.luxXatosi || 0));
-
-      if (jamiKun > maxKun) {
-        maxKun = jamiKun;
+      if (o.jamiKun > maxKun) {
+        maxKun = o.jamiKun;
         bestWorker = ishchi.ism;
       }
-      const ishchiJamiBrak = ishchiIgna + ishchiLux;
+      const ishchiJamiBrak = o.brakIgna + o.brakLux;
       if (ishchiJamiBrak > maxBrak) {
         maxBrak = ishchiJamiBrak;
         worstWorker = ishchi.ism;
       }
     });
 
-    const hozir = new Date();
-    const bugunSanaStr = `${hozir.getFullYear()}-${String(hozir.getMonth() + 1).padStart(2, '0')}-${String(hozir.getDate()).padStart(2, '0')}`;
-
-    const kechaDate = new Date();
-    kechaDate.setDate(kechaDate.getDate() - 1);
-    const kechaSanaStr = `${kechaDate.getFullYear()}-${String(kechaDate.getMonth() + 1).padStart(2, '0')}-${String(kechaDate.getDate()).padStart(2, '0')}`;
-    const kechaKorsatish = `${String(kechaDate.getDate()).padStart(2, '0')}.${String(kechaDate.getMonth() + 1).padStart(2, '0')}`;
+    const bugunSanaStr = toshkentSana();
+    const kechaSanaStr = sanagaKunQoshish(bugunSanaStr, -1);
+    const kechaKorsatish = `${kechaSanaStr.slice(8, 10)}.${kechaSanaStr.slice(5, 7)}`;
 
     let y_kechaDenKg = 0, y_kechaDenSoni = 0;
     let y_kechaNochKg = 0, y_kechaNochSoni = 0;
@@ -275,8 +255,7 @@ export default function AsosiyPanelSahifasi() {
   }, []);
 
   useEffect(() => {
-    const d = new Date();
-    const hozirgiOy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const hozirgiOy = toshkentOy();
     setTanlanganOy(hozirgiOy);
     malumotlarniAnalizQilish(hozirgiOy);
 

@@ -1,5 +1,8 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
+import { faolIshchilar, operatormi } from '@/lib/hisob';
+import { oyIshchilari } from '@/lib/mahalliyXotira';
+import { toshkentSana } from '@/lib/sana';
 
 export default function ApparatCard({ id, onDataChange, initialData, readOnly, joriySana, rol, isLoaded = true }: any) {
   const [rulonlar, setRulonlar] = useState(
@@ -59,25 +62,9 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
 
   const operatorlarniYuklash = () => {
     try {
-      const sanaString = joriySana || new Date().toISOString().split('T')[0];
-      const joriyYilOy = sanaString.slice(0, 7); 
-      
-      const xodimlarStr = 
-        localStorage.getItem(`zavod_ishchilar_${joriyYilOy}`) || 
-        localStorage.getItem('zavod_ishchilar_bazasi') || 
-        localStorage.getItem('ishchilar');
-
-      if (xodimlarStr) {
-        const xodimlar = JSON.parse(xodimlarStr);
-        const faqatOperatorlar = xodimlar.filter((x: any) => {
-          if (!x) return false;
-          const lavozim = String(x.lavozim || x.mutaxassislik || x.rol || '').toLowerCase();
-          return lavozim.includes('operat') || JSON.stringify(x).toLowerCase().includes('operat');
-        });
-        setOperatorlarList(faqatOperatorlar);
-      } else {
-        setOperatorlarList([]);
-      }
+      const joriyYilOy = (joriySana || toshkentSana()).slice(0, 7);
+      // Yangi oy boshlanganda ham ro'yxat bo'sh qolmaydi (oldingi oydan ko'chiriladi)
+      setOperatorlarList(faolIshchilar(oyIshchilari(joriyYilOy)).filter(operatormi));
     } catch (e) {
       console.error("Operatorlarni yuklashda xatolik:", e);
     }

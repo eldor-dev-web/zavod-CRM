@@ -1,5 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
+import { avansYigindisi } from '@/lib/hisob';
+import { toshkentSana } from '@/lib/sana';
 
 export default function AvansBloknot({
   tanlanganOy,
@@ -16,9 +18,7 @@ export default function AvansBloknot({
   const xotiraKaliti = `zavod_eslatmalar_${tanlanganOy}`;
 
   useEffect(() => {
-    const d = new Date();
-    const kun = String(d.getDate()).padStart(2, '0');
-    const oy = String(d.getMonth() + 1).padStart(2, '0');
+    const [, oy, kun] = toshkentSana().split('-');
     setBugun(`${kun}.${oy}`);
 
     const saqlangan = localStorage.getItem(xotiraKaliti);
@@ -42,7 +42,7 @@ export default function AvansBloknot({
   const klaviaturaBosilganda = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       const formatlangan = matn.replace(/\b(\d{4,9})\b/g, (raqam) => {
-        return Number(raqam).toLocaleString();
+        return Number(raqam).toLocaleString('en-US');
       });
       if (formatlangan !== matn) {
         matnniOzgartirish(formatlangan);
@@ -74,20 +74,8 @@ export default function AvansBloknot({
     }, 50);
   };
 
-  // Matn ichidagi summalarni avtomatik qo'shish
-  const jamiAvansniHisoblash = () => {
-    if (!matn.trim()) return 0;
-    const sanasizMatn = matn.replace(/\[\d{1,2}\.\d{1,2}\]/g, '');
-    const topilganRaqamlar = sanasizMatn.match(/\b\d{1,3}(?:[ ,]\d{3})+\b|\b\d{4,9}\b/g);
-    if (!topilganRaqamlar) return 0;
-
-    return topilganRaqamlar.reduce((jami, qism) => {
-      const son = Number(qism.replace(/\D/g, ''));
-      return jami + (son >= 1000 ? son : 0);
-    }, 0);
-  };
-
-  const jamiSumma = jamiAvansniHisoblash();
+  // Matn ichidagi summalar (Telegram bot ham xuddi shunday hisoblaydi)
+  const jamiSumma = avansYigindisi(matn);
 
   return (
     <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/90 overflow-hidden mt-6">
@@ -109,7 +97,7 @@ export default function AvansBloknot({
           <div className="flex items-center gap-2 sm:hidden">
             {jamiSumma > 0 && (
               <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 border border-rose-200/70">
-                <span className="text-[11px] font-black text-rose-700">{jamiSumma.toLocaleString()}</span>
+                <span className="text-[11px] font-black text-rose-700">{jamiSumma.toLocaleString('ru-RU')}</span>
               </div>
             )}
 
@@ -175,7 +163,7 @@ export default function AvansBloknot({
               <svg className="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-xs font-black text-rose-700">{jamiSumma.toLocaleString()}</span>
+              <span className="text-xs font-black text-rose-700">{jamiSumma.toLocaleString('ru-RU')}</span>
             </div>
           )}
 

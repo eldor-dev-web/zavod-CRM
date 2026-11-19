@@ -6,8 +6,8 @@ interface XodimModalProps {
   yopish: () => void;
   tanlanganXodim: any | null;
   lavozimlarBazasi: any[];
-  saqlash: (xodimData: { id?: number; ism: string; lavozimi: string; telefon: string; telegramId: string }) => void;
-  ochirish?: (id: number, ism: string) => void;
+  saqlash: (xodimData: { id?: number | string; ism: string; lavozimi: string; telefon: string }) => void;
+  ochirish?: (id: number | string, ism: string) => void;
 }
 
 const Icons = {
@@ -24,11 +24,6 @@ const Icons = {
   Phone: () => (
     <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-    </svg>
-  ),
-  Telegram: () => (
-    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
     </svg>
   ),
   Trash: () => (
@@ -64,7 +59,6 @@ export default function XodimModal({
   const [ism, setIsm] = useState('');
   const [lavozimi, setLavozimi] = useState('');
   const [telefon, setTelefon] = useState('');
-  const [telegramId, setTelegramId] = useState('');
   const [xatolik, setXatolik] = useState('');
 
   useEffect(() => {
@@ -72,12 +66,10 @@ export default function XodimModal({
       setIsm(tanlanganXodim.ism || '');
       setLavozimi(tanlanganXodim.lavozimi || '');
       setTelefon(tanlanganXodim.telefon || '+998 ');
-      setTelegramId(tanlanganXodim.telegramId || '');
     } else {
       setIsm('');
       setLavozimi(lavozimlarBazasi[0]?.nomi || '');
       setTelefon('+998 ');
-      setTelegramId('');
     }
     setXatolik('');
   }, [tanlanganXodim, ochiq, lavozimlarBazasi]);
@@ -99,8 +91,7 @@ export default function XodimModal({
       id: tanlanganXodim?.id,
       ism: ism.trim(),
       lavozimi,
-      telefon: telefon.trim(),
-      telegramId: telegramId.trim()
+      telefon: telefon.trim()
     });
     yopish();
   };
@@ -172,6 +163,7 @@ export default function XodimModal({
             <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
               Telefon raqam
             </label>
+            <p className="text-[10px] text-slate-400 font-semibold -mt-1 mb-1.5">Telegram botdagi raqami bilan bir xil bo'lsin</p>
             <div className="relative flex items-center">
               <span className="absolute left-3.5"><Icons.Phone /></span>
               <input
@@ -179,23 +171,7 @@ export default function XodimModal({
                 value={telefon}
                 onChange={(e) => setTelefon(e.target.value)}
                 placeholder="+998 90 123 45 67"
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 focus:bg-white border border-slate-200 font-semibold text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-              Telegram ID
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-3.5"><Icons.Telegram /></span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={telegramId}
-                onChange={(e) => setTelegramId(e.target.value.replace(/\D/g, ''))}
-                placeholder="Chat ID raqami"
+                inputMode="tel"
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 focus:bg-white border border-slate-200 font-semibold text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 outline-none transition-all"
               />
             </div>
