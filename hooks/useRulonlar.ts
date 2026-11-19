@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { faolIshchilar, KALIT } from '@/lib/hisob';
-import { oyIshchilari } from '@/lib/mahalliyXotira';
+import { joriyRol, oyIshchilari } from '@/lib/mahalliyXotira';
 import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
+import { DEN, NOCH, oldingiSmena, smenaQulflanganmi } from '@/lib/smena';
+
+// Arxivga o'tgan smena: faqat admin o'zgartira oladi
+const faqatKorish = (sana: string) => smenaQulflanganmi(sana) && joriyRol() !== 'admin';
 
 export function useRulonlar() {
   const [moshinalar, setMoshinalar] = useState<any[]>([]);
@@ -24,18 +28,15 @@ export function useRulonlar() {
     const saqlanganSana = localStorage.getItem('zavod_oxirgi_sana');
     const saqlanganSmena = localStorage.getItem('zavod_oxirgi_smena');
     
-    if (saqlanganSana) {
+    // Master oxirgi tanlagan sana va smena ochiladi (smenani master o'zi almashtiradi).
+    // Faqat u sana arxivga o'tib ketgan bo'lsa, bugungi kun ochiladi.
+    if (saqlanganSana && !smenaQulflanganmi(saqlanganSana)) {
       setSana(saqlanganSana);
     } else {
       setSana(toshkentSana());
     }
+    setSmenaTuri(saqlanganSmena || DEN);
 
-    if (saqlanganSmena) {
-      setSmenaTuri(saqlanganSmena);
-    } else {
-      setSmenaTuri('DEN (Kunduzgi)');
-    }
-    
     setIsInitialized(true);
   }, []);
 
@@ -134,7 +135,7 @@ export function useRulonlar() {
   }, [sana, smenaTuri, isInitialized]);
 
   const bazagaSaqlash = useCallback(async (currentData: typeof dataRef.current) => {
-    if (!currentData.sana) return;
+    if (!currentData.sana || faqatKorish(currentData.sana)) return;
     try {
       const payload = {
         sana: currentData.sana,
@@ -171,7 +172,7 @@ export function useRulonlar() {
   }, [sana, smenaTuri, kontrolchi, master, moshinaMaqotlari, isLoaded, bazagaSaqlash]);
 
   useEffect(() => {
-    if (!sana || !isInitialized) return;
+    if (!sana || !isInitialized || faqatKorish(sana)) return;
     const joriyYilOy = sana.slice(0, 7);
     const kun = Number(sana.split('-')[2]);
     const ishchilarBazasi = faolIshchilar(oyIshchilari(joriyYilOy));
@@ -257,16 +258,78 @@ export function useRulonlar() {
 
   const handleMoshinaDataChange = (id: number, data: any) => setMoshinaMaqotlari(prev => ({ ...prev, [id]: data }));
 
+  // Keyingi smenaga o'tish: DEN -> shu kunning NOCH, NOCH -> ertangi DEN
   const yangiSmenagaOtish = () => {
-    if (smenaTuri.includes('DEN')) { setSmenaTuri('NOCH (Tungi)'); } 
-    else {
-      setSana(sanagaKunQoshish(sana, 1)); setSmenaTuri('DEN (Kunduzgi)');
+    if (smenaTuri.includes('DEN')) {
+      setSmenaTuri(NOCH);
+    } else {
+      setSana(sanagaKunQoshish(sana, 1));
+      setSmenaTuri(DEN);
     }
+  };
+
+  // OLDINGI SMENADAN MOSHINALARNI KO'CHIRISH
+  // Raqam, talimoti, brend, IP va lot ko'chiriladi. Operator bo'sh qoladi, rulonlar yangidan boshlanadi.
+  // Bu smenada allaqachon bor moshina raqamlari qayta qo'shilmaydi.
+  const oldingiSmenadanKochirish = async (): Promise<{ qoshildi: number; xato?: string }> => {
+    const oldingi = oldingiSmena(sana, smenaTuri);
+    let manbaMoshinalar: any[] = [];
+
+    try {
+      const res = await fetch(`/api/smena?sana=${oldingi.sana}&smena=${encodeURIComponent(oldingi.smena)}&t=${Date.now()}`, {
+        cache: 'no-store'
+      });
+      if (res.ok) manbaMoshinalar = (await res.json())?.smena?.moshinalar || [];
+    } catch {}
+
+    // Baza ulanmagan bo'lsa yoki u yerda bo'lmasa, shu kompyuterdagi nusxadan
+    if (manbaMoshinalar.length === 0) {
+      try {
+        const mahalliy = JSON.parse(localStorage.getItem(`zavod_smena_${oldingi.sana}_${oldingi.smena}`) || 'null');
+        const m = mahalliy?.moshinalar;
+        manbaMoshinalar = Array.isArray(m) ? m : Object.values(m || {});
+      } catch {}
+    }
+
+    if (manbaMoshinalar.length === 0) {
+      return { qoshildi: 0, xato: `Oldingi smenada (${oldingi.sana.split('-').reverse().join('.')}, ${oldingi.smena.split(' ')[0]}) moshina topilmadi` };
+    }
+
+    const borRaqamlar = new Set(
+      Object.values(moshinaMaqotlari).map((m: any) => String(m.raqam || '').trim().toUpperCase()).filter(Boolean)
+    );
+    const boshId = Date.now();
+    const yangilar = manbaMoshinalar
+      .filter((m: any) => {
+        const raqam = String(m.raqam || '').trim().toUpperCase();
+        return !raqam || !borRaqamlar.has(raqam);
+      })
+      .map((m: any, i: number) => ({
+        id: boshId + i,
+        raqam: m.raqam || '',
+        talimoti: m.talimoti || '',
+        brend: m.brend || '',
+        ip: m.ip || '',
+        lot: m.lot || '',
+        operator: '',
+        operatorId: null,
+        rulonlar: []
+      }));
+
+    if (yangilar.length === 0) return { qoshildi: 0, xato: 'Oldingi smenadagi barcha moshinalar bu smenada allaqachon bor' };
+
+    setMoshinalar((prev) => [...prev, ...yangilar.map((m) => ({ id: m.id }))]);
+    setMoshinaMaqotlari((prev) => {
+      const yangi = { ...prev };
+      yangilar.forEach((m) => (yangi[m.id] = m));
+      return yangi;
+    });
+    return { qoshildi: yangilar.length };
   };
 
   return {
     moshinalar, sana, setSana, smenaTuri, setSmenaTuri, kontrolchi, setKontrolchi, master, setMaster,
-    moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, yangiSmenagaOtish,
+    moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, yangiSmenagaOtish, oldingiSmenadanKochirish,
     isLoaded 
   };
 }

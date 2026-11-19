@@ -37,3 +37,4 @@ export function sanagaKunQoshish(sana: string, kunlar: number): string {
   const t = new Date(Date.UTC(y, m - 1, d + kunlar));
   return t.toISOString().slice(0, 10);
 }
+

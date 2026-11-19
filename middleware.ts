@@ -10,7 +10,7 @@ const OCHIQ_API = ['/api/auth/login', '/api/auth/logout', '/api/telegram'];
 const SAHIFA_RUXSATLARI: { prefiks: string; rollar: Rol[] }[] = [
   { prefiks: '/ishchilar', rollar: ['admin', 'master'] },
   { prefiks: '/sozlamalar', rollar: ['admin'] },
-  { prefiks: '/arxiv', rollar: ['admin', 'master'] },
+  { prefiks: '/arxiv', rollar: ['admin'] },
   { prefiks: '/braklar', rollar: ['admin', 'master', 'kontrolchi'] },
   { prefiks: '/rulonlar', rollar: ['admin', 'master', 'kontrolchi'] }
 ];

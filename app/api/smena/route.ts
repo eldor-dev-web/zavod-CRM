@@ -1,11 +1,24 @@
-import { NextResponse } from 'next/server';
-import prisma from '../../../lib/prisma'; 
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { sorovRoli } from '@/lib/sessiya';
+import { smenaQulflanganmi } from '@/lib/smena';
 
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const rol = await sorovRoli(request);
+    if (!rol) return NextResponse.json({ error: 'Tizimga kiring' }, { status: 401 });
+
     const body = await request.json();
     const { sana, smena, kontrolchi, master, moshinalar = [] } = body;
+
+    if (typeof sana !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(sana) || typeof smena !== 'string' || !smena) {
+      return NextResponse.json({ error: 'Sana yoki smena noto\'g\'ri' }, { status: 400 });
+    }
+
+    // Arxiv himoyasi: eski smenalarni faqat admin o'zgartira oladi (dalil buzilmasligi uchun)
+    if (smenaQulflanganmi(sana) && rol !== 'admin') {
+      return NextResponse.json({ error: 'Bu smena arxivga o\'tgan. Uni faqat admin o\'zgartira oladi.' }, { status: 403 });
+    }
 
     const prismaMoshinalar = moshinalar.map((m: any) => ({
       raqam: m.raqam || "",
@@ -69,7 +82,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const sana = searchParams.get('sana');

@@ -2,13 +2,31 @@
 import React, { useState, useEffect } from 'react';
 import ApparatCard from '@/components/ApparatCard';
 import SmenaFormasi from '@/components/SmenaFormasi'; 
-import { useRulonlar } from '@/hooks/useRulonlar'; 
+import { useRulonlar } from '@/hooks/useRulonlar';
+import { oldingiSmena, smenaQisqa, smenaQulflanganmi } from '@/lib/smena';
 
 export default function RulonlarSahifasi() {
   const {
     moshinalar, sana, setSana, smenaTuri, setSmenaTuri, kontrolchi, setKontrolchi, master, setMaster,
-    moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange
+    moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, oldingiSmenadanKochirish
   } = useRulonlar();
+
+  // "Oldingi smenadan ko'chirish" holati
+  const [kochirilmoqda, setKochirilmoqda] = useState(false);
+  const [kochirishXabari, setKochirishXabari] = useState<{ turi: 'ok' | 'xato'; matn: string } | null>(null);
+
+  const kochirish = async () => {
+    setKochirilmoqda(true);
+    setKochirishXabari(null);
+    const natija = await oldingiSmenadanKochirish();
+    setKochirilmoqda(false);
+    setKochirishXabari(
+      natija.xato
+        ? { turi: 'xato', matn: natija.xato }
+        : { turi: 'ok', matn: `${natija.qoshildi} ta moshina ko'chirildi. Endi operatorlarni tanlang.` }
+    );
+    setTimeout(() => setKochirishXabari(null), 6000);
+  };
 
   // 1. ROLNI ANIQLASH (HUQUQLAR UCHUN)
   const [rol, setRol] = useState('');
@@ -19,7 +37,11 @@ export default function RulonlarSahifasi() {
     }
   }, []);
 
-  const masterHuquqi = rol === 'admin' || rol === 'master';
+  // Eski (arxivga o'tgan) smenani faqat admin o'zgartiradi, boshqalar faqat ko'radi
+  const faqatKorish = !!sana && smenaQulflanganmi(sana) && rol !== 'admin';
+  const oldingi = sana && smenaTuri ? oldingiSmena(sana, smenaTuri) : null;
+  const oldingiNomi = oldingi ? `${oldingi.sana.split('-').reverse().slice(0, 2).join('.')} ${smenaQisqa(oldingi.smena)}` : '';
+  const masterHuquqi = (rol === 'admin' || rol === 'master') && !faqatKorish;
   // (Kontrolchi huquqi asosan ApparatCard ichida ishlatiladi, u yog'ini komponenting ichiga uzatamiz)
 
   return (
@@ -29,7 +51,11 @@ export default function RulonlarSahifasi() {
       <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
         <h1 className="text-xl sm:text-3xl font-black text-slate-800 tracking-tight">Rulonlar va Sifat Nazorati</h1>
         
-        {/* Smena doim ochiq, avtomat saqlab boradi */}
+        {faqatKorish ? (
+          <div className="bg-amber-50 text-amber-800 text-[10px] sm:text-xs font-black px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm border border-amber-200">
+            🔒 ARXIVLANGAN SMENA — FAQAT KO&apos;RISH
+          </div>
+        ) : (
         <div className="bg-emerald-100 text-emerald-800 text-[10px] sm:text-xs font-black px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm border border-emerald-200">
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -37,10 +63,12 @@ export default function RulonlarSahifasi() {
           </span>
           AVTOMAT SAQLANMOQDA
         </div>
+        )}
       </div>
 
       {/* 🚀 2. SMENA FORMASI (Sana, Smena, Master, Kantrolchi shu yerda aylanadi) */}
-      <div className={`bg-white rounded-2xl shadow-sm border-2 mb-8 overflow-hidden transition-opacity ${masterHuquqi ? 'border-slate-200' : 'border-slate-100 opacity-70 pointer-events-none'}`}>
+      {/* Sana va smenani tanlash: admin va master uchun doim ochiq (eski smenalarni ko'rish uchun ham) */}
+      <div className={`bg-white rounded-2xl shadow-sm border-2 mb-8 overflow-hidden transition-opacity ${rol === 'admin' || rol === 'master' ? 'border-slate-200' : 'border-slate-100 opacity-70 pointer-events-none'}`}>
         {/* Master va Admindan boshqa odam kira olmasligi uchun 'pointer-events-none' berildi */}
         <SmenaFormasi 
           sana={sana} setSana={setSana} 
@@ -49,6 +77,43 @@ export default function RulonlarSahifasi() {
           master={master} setMaster={setMaster} 
         />
       </div>
+
+      {/* KO'CHIRISH NATIJASI */}
+      {kochirishXabari && (
+        <div
+          className={`mb-4 rounded-xl border px-4 py-3 text-xs font-bold sm:text-sm ${
+            kochirishXabari.turi === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+          }`}
+        >
+          {kochirishXabari.turi === 'ok' ? '✓ ' : '⚠️ '}
+          {kochirishXabari.matn}
+        </div>
+      )}
+
+      {/* YANGI SMENA: hali moshina yo'q bo'lsa, oldingi smenadan ko'chirishni taklif qilamiz */}
+      {moshinalar.length === 0 && masterHuquqi && (
+        <div className="mb-6 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-6 text-center">
+          <p className="text-sm font-black text-slate-800 sm:text-base">Bu smenada hali moshina yo&apos;q</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            Moshinalarni oldingi smenadan ({oldingiNomi}) raqami, talimoti, brendi, IP va loti bilan ko&apos;chiring — keyin faqat operatorlarni tanlaysiz
+          </p>
+          <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row">
+            <button
+              onClick={kochirish}
+              disabled={kochirilmoqda}
+              className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-60"
+            >
+              {kochirilmoqda ? 'Ko\'chirilmoqda...' : `⇩ Oldingi smenadan ko'chirish`}
+            </button>
+            <button
+              onClick={moshinaQoshish}
+              className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 transition-all hover:bg-slate-50"
+            >
+              + Bo&apos;sh moshina qo&apos;shish
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 🚀 3. JADVALLAR (MOSHINALAR) - HAR DOIM YOZISH MUMKIN BOLGAN HOLATDA */}
       <div className="space-y-6">
@@ -75,6 +140,7 @@ export default function RulonlarSahifasi() {
                 onDataChange={(data: any) => handleMoshinaDataChange(moshina.id, data)} 
                 joriySana={sana}
                 rol={rol} // HUQUQNI APPARAT CARD GA JO'NATDIK
+                readOnly={faqatKorish}
               />
             </div>
           );
@@ -82,8 +148,16 @@ export default function RulonlarSahifasi() {
       </div>
 
       {/* 🚀 4. YANGI MOSHINA QO'SHISH TUGMASI (Faqat Master yoki Admin ko'radi) */}
-      {masterHuquqi && (
-        <div className="mt-8 flex justify-center pb-12">
+      {masterHuquqi && moshinalar.length > 0 && (
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 pb-12 sm:flex-row">
+          <button
+            onClick={kochirish}
+            disabled={kochirilmoqda}
+            title={`${oldingiNomi} smenasidagi, bu yerda hali yo'q moshinalarni qo'shadi`}
+            className="bg-white hover:bg-slate-50 text-slate-600 border-2 border-slate-200 font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 shadow-sm disabled:opacity-60"
+          >
+            ⇩ {kochirilmoqda ? 'Ko\'chirilmoqda...' : 'Oldingi smenadan ko\'chirish'}
+          </button>
           <button 
             onClick={moshinaQoshish} 
             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border-2 border-dashed border-indigo-200 hover:border-indigo-400 font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 shadow-sm"
