@@ -120,7 +120,7 @@ async function hisobotMatni(ishchi: Ishchi, oy: string) {
 
 // --- HISOBOT JADVALI ---
 // Bot faqat har oyning 1–5 kunlari ochiq va O'TGAN oyning hisobotini ko'rsatadi.
-// Bu kunlarda har bir ishchi hisobotni kuniga 1 marta ko'ra oladi.
+// Bu 5 kun ichida har bir ishchi hisobotni faqat 1 marta ko'ra oladi.
 const OCHIQ_KUNLAR = 5;
 const SOROVLAR_KALITI = 'zavod_bot_sorovlar'; // { "901234567": "2026-12-02" } — oxirgi ko'rgan kuni
 
@@ -165,7 +165,7 @@ async function ishchiniTopish(tozaTel: string, hisobotOyi: string): Promise<Ishc
 }
 
 // TELEGRAM WEBHOOK
-// Oyning 1–5 kunlari ishchi raqamini tugma orqali yuboradi -> o'tgan oy hisoboti qaytadi (kuniga 1 marta).
+// Oyning 1–5 kunlari ishchi raqamini tugma orqali yuboradi -> o'tgan oy hisoboti qaytadi (5 kun ichida 1 marta).
 export async function POST(req: Request) {
   // So'rov haqiqatan Telegramdan kelganini tekshirish (.env da TELEGRAM_WEBHOOK_SECRET bo'lsa)
   const webhookSiri = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -228,16 +228,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      // Kuniga 1 marta
+      // 1–5 kunlar ichida faqat 1 marta
       const sorovlar = await sorovlarniOqish();
-      if (sorovlar[tozaTel] === bugun) {
-        const qolganKun = OCHIQ_KUNLAR - kun;
+      const korganSana = String(sorovlar[tozaTel] || '');
+      if (korganSana.startsWith(joriyOy)) {
         await telegramXabarYuborish(
           token,
           chatId,
-          qolganKun > 0
-            ? `Bugun hisobotingizni ko'rgansiz. Ertaga yana ko'rishingiz mumkin (${OCHIQ_KUNLAR}-${oyNomi(joriyOy)}gacha).`
-            : `Bugun hisobotingizni ko'rgansiz. Keyingi hisobot ${keyingiOyBoshi(joriyOy)} kuni ochiladi.`,
+          `Siz ${oyNomi(hisobotOyi)} oyi hisobotini ${Number(korganSana.slice(8, 10))}-${oyNomi(joriyOy)} kuni ko'rgansiz.\n` +
+            `Keyingi hisobot: <b>${keyingiOyBoshi(joriyOy)}</b> kuni ochiladi.`,
           { remove_keyboard: true }
         );
         return NextResponse.json({ ok: true });
