@@ -14,8 +14,8 @@ const FAQAT_ADMIN_KALITLAR = [
   'zavod_telegram_bot_token'
 ];
 
-// Pul bilan bog'liq: avanslar jadvali va eslatmalar (Avanslar sahifasi) — faqat admin ko'radi va o'zgartiradi
-const FAQAT_ADMIN_PREFIKSLAR = ['zavod_avanslar_', 'zavod_eslatmalar_'];
+// Avans daftari (pul ma'lumoti) — faqat admin ko'radi va o'zgartiradi
+const FAQAT_ADMIN_PREFIKSLAR = ['zavod_eslatmalar_'];
 
 // Bu kalitlarni admin va master o'zgartiradi (Ishchilar sahifasi)
 const ADMIN_MASTER_PREFIKSLAR = ['zavod_ishchilar_', 'zavod_xodim_davomati'];
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         AND: [
           { kalit: { notIn: [PIN_KALITI, 'zavod_telegram_bot_token', 'zavod_oxirgi_sana', 'zavod_oxirgi_smena', 'zavod_foydalanuvchi', 'zavod_bot_sorovlar'] } },
           { NOT: { kalit: { startsWith: 'zavod_smena_' } } },
-          // Avans va eslatmalarni faqat admin oladi
+          // Avans daftarini faqat admin oladi
           ...(rol === 'admin' ? [] : FAQAT_ADMIN_PREFIKSLAR.map((p) => ({ NOT: { kalit: { startsWith: p } } })))
         ]
       }

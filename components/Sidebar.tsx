@@ -81,7 +81,7 @@ export default function Sidebar() {
     { nomi: 'Smenalar Arxivi', manzil: '/arxiv', ruxsat: ['admin'], Icon: MenuIcons.Arxiv },
     { nomi: 'Texnik Xizmat', manzil: '/texnik', ruxsat: ['admin', 'mexanik'], Icon: MenuIcons.Texnik },
     { nomi: 'Sozlamalar', manzil: '/sozlamalar', ruxsat: ['admin'], Icon: MenuIcons.Sozlamalar },
-    { nomi: 'Avanslar', manzil: '/avanslar', ruxsat: ['admin'], Icon: MenuIcons.Avans }
+    { nomi: 'Avans daftari', manzil: '/avans-daftari', ruxsat: ['admin'], Icon: MenuIcons.Avans }
   ];
 
   useEffect(() => {

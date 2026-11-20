@@ -39,7 +39,6 @@ export const KALIT = {
   brakMeyyori: 'zavod_brak_meyyori',
   brakJadvali: (oy: string) => `zavod_brak_jadval_${oy}`,
   eslatmalar: (oy: string) => `zavod_eslatmalar_${oy}`,
-  avanslar: (oy: string) => `zavod_avanslar_${oy}`,
   sozlamaTarixi: 'zavod_sozlamalar_tarixi'
 } as const;
 
@@ -184,44 +183,49 @@ export function avansYigindisi(eslatmalar: string, ism?: string): number {
     .reduce((jami, qator) => jami + qatordagiSummalar(qator), 0);
 }
 
-// --- AVANSLAR JADVALI (Avanslar sahifasi, faqat admin) ---
-// Har bir avans alohida yozuv: ishchi ID bo'yicha bog'lanadi, shuning uchun ism xato yozilishi muammo emas.
-export type AvansYozuvi = {
-  id: string;
-  sana: string; // YYYY-MM-DD
-  ishchiId: number | string;
-  ism: string;
-  summa: number;
-  izoh?: string;
-};
+// --- AVANS DAFTARI: qatorlarni ajratish (Avans daftari sahifasi va Telegram bot uchun) ---
+export type AvansQatori = { sana: string; summa: number; izoh: string };
 
-export function avanslarniOchish(qiymat: unknown): AvansYozuvi[] {
-  const r = jsonOchish<unknown>(qiymat, []);
-  if (!Array.isArray(r)) return [];
-  return r
-    .filter((a) => a && a.ishchiId !== undefined && son(a.summa) > 0)
-    .map((a) => ({
-      id: String(a.id ?? ''),
-      sana: String(a.sana ?? ''),
-      ishchiId: a.ishchiId,
-      ism: String(a.ism ?? ''),
-      summa: son(a.summa),
-      izoh: a.izoh ? String(a.izoh) : ''
-    }))
-    .sort((a, b) => a.sana.localeCompare(b.sana));
+const SUMMA_REGEXI = /\b\d{1,3}(?:[ ,]\d{3})+\b|\b\d{4,9}\b/g;
+
+// "[05.11] Ali — 300,000 — kasallik uchun" -> "kasallik uchun"
+export function izohAjratish(qator: string, ism?: string): string {
+  let m = qator.replace(/\[\d{1,2}\.\d{1,2}\]/g, ' ');
+  if (ism?.trim()) {
+    m = m.replace(new RegExp(`(?<![${SOZ_BELGILARI}])${regexXavfsiz(ism.trim())}(?![${SOZ_BELGILARI}])`, 'giu'), ' ');
+  }
+  return m
+    .replace(SUMMA_REGEXI, ' ')
+    .replace(/(\s*[—–-]\s*){2,}/g, ' — ')
+    .replace(/^[\s—–\-:;,.]+|[\s—–\-:;,.]+$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
-export function ishchiAvanslari(ishchi: Ishchi, avanslar: AvansYozuvi[]): AvansYozuvi[] {
-  return avanslar.filter((a) => String(a.ishchiId) === String(ishchi.id));
-}
-
-// Eski Notes: shu ishchining ismi yozilgan qatorlar (bot izoh sifatida ko'rsatadi)
-export function ishchiEslatmaQatorlari(eslatmalar: string, ism: string): string[] {
+// Ishchining summasi bor qatorlari: sana (kk.oo), summa va izoh
+export function avansQatorlari(eslatmalar: string, ism: string): AvansQatori[] {
   if (!eslatmalar?.trim() || !ism?.trim()) return [];
   return eslatmalar
     .split('\n')
-    .map((q) => q.trim())
-    .filter((q) => q && ismQatordaBormi(q.replace(/\[\d{1,2}\.\d{1,2}\]/g, ''), ism));
+    .filter((q) => ismQatordaBormi(q.replace(/\[\d{1,2}\.\d{1,2}\]/g, ''), ism))
+    .map((q) => ({
+      sana: (q.match(/\[(\d{1,2}\.\d{1,2})\]/) || [])[1] || '',
+      summa: qatordagiSummalar(q),
+      izoh: izohAjratish(q, ism)
+    }))
+    .filter((q) => q.summa > 0);
+}
+
+// Qatordagi umumiy summa (ismga qaramasdan) — ogohlantirishlar uchun
+export function qatorSummasi(qator: string): number {
+  return qatordagiSummalar(qator);
+}
+
+// Ismlarni matn ichida topish uchun regex (uzun ismlar birinchi: "Ali Valiyev" "Ali"dan oldin)
+export function ismlarRegexi(ismlar: string[]): RegExp | null {
+  const toza = Array.from(new Set(ismlar.map((i) => i.trim()).filter(Boolean))).sort((a, b) => b.length - a.length);
+  if (toza.length === 0) return null;
+  return new RegExp(`(?<![${SOZ_BELGILARI}])(${toza.map(regexXavfsiz).join('|')})(?![${SOZ_BELGILARI}])`, 'giu');
 }
 
 // --- OYLIK: hammasi bir joyda ---
@@ -232,9 +236,6 @@ export type OylikManbalari = {
   brakJadvali: BrakJadvali;
   brakStavkalari: BrakStavkalari;
   eslatmalar: string;
-  // Avanslar jadvali. Shu oyda jadvalda kamida bitta yozuv bo'lsa — faqat jadval hisoblanadi,
-  // bo'lmasa (eski oylar) Notes matnidagi summalar eski usulda hisoblanadi.
-  avanslar?: AvansYozuvi[];
 };
 
 export type OylikNatija = {
@@ -250,7 +251,6 @@ export type OylikNatija = {
   brakLux: number;
   brakJarima: number;
   avans: number;
-  avansRoyxati: AvansYozuvi[]; // jadvaldan (bo'sh bo'lsa — avans eski Notes'dan)
   sof: number; // qo'lga tegadigan: hisoblangan - brak - avans
 };
 
@@ -263,11 +263,7 @@ export function ishchiOyligi(ishchi: Ishchi, oy: string, m: OylikManbalari): Oyl
   const qoshimcha = operator ? jamiMoshina * son(m.operatorQoshimcha) : 0;
   const hisoblangan = asosiy + qoshimcha;
   const brak = brakHisobi(ishchi.id, oy, m.brakJadvali, m.brakStavkalari);
-  const jadvalBor = (m.avanslar?.length ?? 0) > 0;
-  const avansRoyxati = jadvalBor ? ishchiAvanslari(ishchi, m.avanslar!) : [];
-  const avans = jadvalBor
-    ? avansRoyxati.reduce((j, a) => j + a.summa, 0)
-    : avansYigindisi(m.eslatmalar, String(ishchi.ism ?? ''));
+  const avans = avansYigindisi(m.eslatmalar, String(ishchi.ism ?? ''));
 
   return {
     lavozim,
@@ -282,7 +278,6 @@ export function ishchiOyligi(ishchi: Ishchi, oy: string, m: OylikManbalari): Oyl
     brakLux: brak.lux,
     brakJarima: brak.jarima,
     avans,
-    avansRoyxati,
     sof: hisoblangan - brak.jarima - avans
   };
 }
