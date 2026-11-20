@@ -3,12 +3,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { avansYigindisi } from '@/lib/hisob';
 import { toshkentSana } from '@/lib/sana';
 
-export default function AvansBloknot({
+// Avanslar sahifasi pastidagi erkin daftar (faqat admin).
+// Shu oyda Avanslar jadvalida yozuv bo'lsa, bu yerdagi summalar oylikka QO'SHILMAYDI.
+// Jadval bo'sh bo'lsa (eski oylar), avvalgidek ism yozilgan qatorlardagi summalar avans hisoblanadi.
+export default function EslatmaDaftar({
   tanlanganOy,
-  ishchilar = []
+  ishchilar = [],
+  hisobgaOlinadi = false
 }: {
   tanlanganOy: string;
   ishchilar?: any[];
+  hisobgaOlinadi?: boolean;
 }) {
   const [matn, setMatn] = useState('');
   const [qulflangan, setQulflangan] = useState(true);
@@ -75,10 +80,10 @@ export default function AvansBloknot({
   };
 
   // Matn ichidagi summalar (Telegram bot ham xuddi shunday hisoblaydi)
-  const jamiSumma = avansYigindisi(matn);
+  const jamiSumma = hisobgaOlinadi ? avansYigindisi(matn) : 0;
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/90 overflow-hidden mt-6">
+    <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/90 overflow-hidden">
       
       {/* TEPADAGI PANEL (TELEFON VA KOMPYUTERGA MOSLASHGAN) */}
       <div className="p-3 sm:px-4 sm:py-2.5 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
@@ -89,7 +94,7 @@ export default function AvansBloknot({
             <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.3" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            <span>Notes</span>
+            <span>Eslatmalar</span>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-0.5" title="Avto-saqlash faol"></span>
           </div>
 
@@ -190,6 +195,12 @@ export default function AvansBloknot({
         </div>
       </div>
 
+      <p className="px-4 pt-2.5 text-[11px] font-semibold text-slate-400">
+        {hisobgaOlinadi
+          ? "Bu oyda jadvalda avans yo'q: bu yerdagi ism yozilgan qatorlardagi summalar avans deb hisoblanadi (eski usul)."
+          : "Bu daftar oylikka ta'sir qilmaydi. Avanslarni yuqoridagi jadvalga kiriting."}
+      </p>
+
       {/* YOZUV MAYDONI (text-base telefonda zoom bo'lib ketishini to'xtatadi!) */}
       <div className="p-2.5 sm:p-3 bg-white">
         <textarea
@@ -201,7 +212,7 @@ export default function AvansBloknot({
           onDoubleClick={() => {
             if (qulflangan) setQulflangan(false);
           }}
-          placeholder="Avans va eslatmalar..."
+          placeholder="Erkin eslatmalar..."
           className={`w-full overflow-hidden resize-none min-h-[150px] text-base sm:text-sm leading-7 font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal outline-none rounded-xl p-3 transition-colors ${
             qulflangan 
               ? 'bg-slate-50/70 cursor-default select-text' 

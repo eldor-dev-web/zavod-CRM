@@ -14,6 +14,9 @@ const FAQAT_ADMIN_KALITLAR = [
   'zavod_telegram_bot_token'
 ];
 
+// Pul bilan bog'liq: avanslar jadvali va eslatmalar (Avanslar sahifasi) — faqat admin ko'radi va o'zgartiradi
+const FAQAT_ADMIN_PREFIKSLAR = ['zavod_avanslar_', 'zavod_eslatmalar_'];
+
 // Bu kalitlarni admin va master o'zgartiradi (Ishchilar sahifasi)
 const ADMIN_MASTER_PREFIKSLAR = ['zavod_ishchilar_', 'zavod_xodim_davomati'];
 
@@ -25,13 +28,15 @@ function yozishgaRuxsat(rol: Rol, kalit: string) {
   // Mexanik faqat texnik xizmat ma'lumotlarini o'zgartira oladi
   if (rol === 'mexanik') return false;
   if (FAQAT_ADMIN_KALITLAR.includes(kalit)) return rol === 'admin';
+  if (FAQAT_ADMIN_PREFIKSLAR.some((p) => kalit.startsWith(p))) return rol === 'admin';
   if (ADMIN_MASTER_PREFIKSLAR.some((p) => kalit.startsWith(p))) return rol === 'admin' || rol === 'master';
   return true;
 }
 
 // 1. Bazadan barcha xotira ma'lumotlarini o'qish (PIN-kodlarsiz)
 export async function GET(req: NextRequest) {
-  if (!(await sorovRoli(req))) return NextResponse.json({ xato: 'Tizimga kiring' }, { status: 401 });
+  const rol = await sorovRoli(req);
+  if (!rol) return NextResponse.json({ xato: 'Tizimga kiring' }, { status: 401 });
 
   try {
     // Smenalar o'z jadvalida (/api/smena), qurilma sozlamalari esa har bir kompyuterning o'zida turadi.
@@ -40,7 +45,9 @@ export async function GET(req: NextRequest) {
       where: {
         AND: [
           { kalit: { notIn: [PIN_KALITI, 'zavod_telegram_bot_token', 'zavod_oxirgi_sana', 'zavod_oxirgi_smena', 'zavod_foydalanuvchi', 'zavod_bot_sorovlar'] } },
-          { NOT: { kalit: { startsWith: 'zavod_smena_' } } }
+          { NOT: { kalit: { startsWith: 'zavod_smena_' } } },
+          // Avans va eslatmalarni faqat admin oladi
+          ...(rol === 'admin' ? [] : FAQAT_ADMIN_PREFIKSLAR.map((p) => ({ NOT: { kalit: { startsWith: p } } })))
         ]
       }
     });

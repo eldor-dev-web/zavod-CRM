@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import {
+  avanslarniOchish,
+  ishchiEslatmaQatorlari,
   ishchiOyligi,
   jsonOchish,
   KALIT,
@@ -40,6 +42,10 @@ function raqamniTozalash(tel: unknown) {
 }
 
 // Telegram HTML uchun maxsus belgilarni xavfsiz qilish
+// Oy nomlari (o'zbekcha)
+const OY_NOMLARI = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+const oyNomi = (oy: string) => OY_NOMLARI[Number(oy.slice(5, 7)) - 1] || oy;
+
 function htmlXavfsiz(matn: unknown) {
   return String(matn ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -67,14 +73,15 @@ async function oyIshchilari(oy: string): Promise<Ishchi[]> {
 }
 
 async function oylikManbalari(oy: string): Promise<OylikManbalari> {
-  const [davomat, lavozimlar, qoshimcha, brakJadvali, brakStavkalari, eslatmalar, tarix] = await Promise.all([
+  const [davomat, lavozimlar, qoshimcha, brakJadvali, brakStavkalari, eslatmalar, tarix, avanslar] = await Promise.all([
     xotiradanOlish(KALIT.davomat, {}),
     xotiradanOlish(KALIT.lavozimlar, STANDART_LAVOZIMLAR),
     xotiradanOlish<unknown>(KALIT.operatorQoshimcha, STANDART_OPERATOR_QOSHIMCHA),
     xotiradanOlish(KALIT.brakJadvali(oy), {}),
     xotiradanOlish(KALIT.brakStavkalari, STANDART_BRAK_STAVKALARI),
     xotiradanOlish<unknown>(KALIT.eslatmalar(oy), ''),
-    xotiradanOlish<SozlamaTarixi>(KALIT.sozlamaTarixi, {})
+    xotiradanOlish<SozlamaTarixi>(KALIT.sozlamaTarixi, {}),
+    xotiradanOlish<unknown>(KALIT.avanslar(oy), [])
   ]);
   // Shu oyda amal qilgan sozlamalar (o'tgan oylar eski stavka bilan)
   const oySozlama = oySozlamasi(
@@ -90,13 +97,15 @@ async function oylikManbalari(oy: string): Promise<OylikManbalari> {
     davomat,
     ...oySozlama,
     brakJadvali,
-    eslatmalar: String(eslatmalar ?? '')
+    eslatmalar: String(eslatmalar ?? ''),
+    avanslar: avanslarniOchish(avanslar)
   };
 }
 
 // Hisobot matni (faqat 0 dan katta qatorlar chiqadi)
 async function hisobotMatni(ishchi: Ishchi, oy: string) {
-  const o = ishchiOyligi(ishchi, oy, await oylikManbalari(oy));
+  const manbalar = await oylikManbalari(oy);
+  const o = ishchiOyligi(ishchi, oy, manbalar);
 
   const qatorlar = [
     `👤 <b>${htmlXavfsiz(ishchi.ism)}</b> (${htmlXavfsiz(o.lavozim || 'Xodim')})`,
@@ -112,7 +121,23 @@ async function hisobotMatni(ishchi: Ishchi, oy: string) {
       .join(', ');
     qatorlar.push(`• <b>Brak jarimasi:</b> -${pulFormat(o.brakJarima)} UZS (${metrlar})`);
   }
-  if (o.avans > 0) qatorlar.push(`• <b>Olingan avans:</b> -${pulFormat(o.avans)} UZS`);
+  if (o.avansRoyxati.length > 0) {
+    // Avanslar jadvalidan: har biri sanasi va izohi bilan
+    qatorlar.push('', `💸 <b>Avanslar:</b>`);
+    o.avansRoyxati.forEach((a) => {
+      const kun = `${Number(a.sana.slice(8, 10))}-${oyNomi(a.sana.slice(0, 7))}`;
+      qatorlar.push(`• ${kun}: ${pulFormat(a.summa)} UZS${a.izoh ? ` — <i>${htmlXavfsiz(a.izoh)}</i>` : ''}`);
+    });
+    qatorlar.push(`<b>Jami avans:</b> -${pulFormat(o.avans)} UZS`);
+  } else if (o.avans > 0) {
+    // Eski oylar (Notes matni): summa va shu ishchi yozilgan qatorlar izoh sifatida
+    qatorlar.push(`• <b>Olingan avans:</b> -${pulFormat(o.avans)} UZS`);
+    const izohlar = ishchiEslatmaQatorlari(manbalar.eslatmalar, String(ishchi.ism ?? '')).slice(0, 10);
+    if (izohlar.length > 0) {
+      qatorlar.push(`📝 <b>Izoh:</b>`);
+      izohlar.forEach((q) => qatorlar.push(`<i>${htmlXavfsiz(q)}</i>`));
+    }
+  }
   qatorlar.push('', `💵 <b>Qo'lga tegadi: ${pulFormat(o.sof)} UZS</b>`);
 
   return qatorlar.join('\n');
@@ -124,8 +149,6 @@ async function hisobotMatni(ishchi: Ishchi, oy: string) {
 const OCHIQ_KUNLAR = 5;
 const SOROVLAR_KALITI = 'zavod_bot_sorovlar'; // { "901234567": "2026-12-02" } — oxirgi ko'rgan kuni
 
-const OY_NOMLARI = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
-const oyNomi = (oy: string) => OY_NOMLARI[Number(oy.slice(5, 7)) - 1] || oy;
 
 function keyingiOyBoshi(oy: string) {
   const [y, m] = oy.split('-').map(Number);

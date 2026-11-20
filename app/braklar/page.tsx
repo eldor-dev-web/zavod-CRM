@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import BraklarJadvali from '@/components/BraklarJadvali';
-import AvansBloknot from '@/components/AvanstBloknot.';
 import { brakHisobi, faolIshchilar, oyKunlariSoni, operatormi, oySozlamasi, KALIT, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, type Ishchi } from '@/lib/hisob';
 import { oqish } from '@/lib/mahalliyXotira';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
@@ -13,7 +12,6 @@ export default function BraklarSahifasi() {
   const [brakStavkalari, setBrakStavkalari] = useState(STANDART_BRAK_STAVKALARI);
 
   const [ishchilarBazasi, setIshchilarBazasi] = useState<Ishchi[]>([]);
-  const [barchaIshchilar, setBarchaIshchilar] = useState<Ishchi[]>([]);
   const [brakMaqomlari, setBrakMaqomlari] = useState<Record<string, any>>({});
   const [operatorIsmlari, setOperatorIsmlari] = useState<Record<string, string>>({});
   
@@ -22,7 +20,6 @@ export default function BraklarSahifasi() {
 
   const malumotlarniYuklash = (oy: string) => {
     const xodimlar = faolIshchilar(oyIshchilari(oy));
-    setBarchaIshchilar(xodimlar);
     setIshchilarBazasi(xodimlar.filter(operatormi));
 
     const saqlanganBraklar = localStorage.getItem(KALIT.brakJadvali(oy));
@@ -265,7 +262,6 @@ export default function BraklarSahifasi() {
           <span className="font-black text-xs sm:text-base">{umumiyJarimaSummasi.toLocaleString('ru-RU')} <span className="text-[10px] font-bold text-blue-200">so'm</span></span>
         </div>
       </div>
-      <AvansBloknot tanlanganOy={tanlanganOy} ishchilar={barchaIshchilar} />
     </div>
   );
 }
