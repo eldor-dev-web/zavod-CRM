@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ishchiOyligi, faolIshchilar, KALIT, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, STANDART_OPERATOR_QOSHIMCHA } from '@/lib/hisob';
+import { ishchiOyligi, faolIshchilar, KALIT, oySozlamasi, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, STANDART_OPERATOR_QOSHIMCHA } from '@/lib/hisob';
 import { oqish } from '@/lib/mahalliyXotira';
 import { sanagaKunQoshish, toshkentOy, toshkentSana } from '@/lib/sana';
 
@@ -53,6 +53,42 @@ const Icons = {
   )
 };
 
+// Baza ulanmaganda: shu kompyuterda saqlangan smenalardan jami kg va rulon soni
+function mahalliySmenaJamlari() {
+  const xarita = new Map<string, { sana: string; smena: string; moshinalar: any[] }>();
+  try {
+    const arxiv = JSON.parse(localStorage.getItem('zavod_smena_arxivlari') || '[]');
+    if (Array.isArray(arxiv)) {
+      arxiv.forEach((s: any) => {
+        if (s?.sana && s?.smena) xarita.set(`${s.sana}_${s.smena}`, { sana: s.sana, smena: s.smena, moshinalar: s.moshinaTafsilotlari });
+      });
+    }
+  } catch {}
+  for (let i = 0; i < localStorage.length; i++) {
+    const kalit = localStorage.key(i);
+    if (!kalit || !/^zavod_smena_\d{4}-\d{2}-\d{2}_/.test(kalit)) continue;
+    try {
+      const d = JSON.parse(localStorage.getItem(kalit) || '{}');
+      const smena = d.smena ?? d.smenaTuri;
+      if (d.sana && smena) xarita.set(`${d.sana}_${smena}`, { sana: d.sana, smena, moshinalar: d.moshinalar });
+    } catch {}
+  }
+  return Array.from(xarita.values()).map(({ sana, smena, moshinalar }) => {
+    let kg = 0;
+    let rulon = 0;
+    (Array.isArray(moshinalar) ? moshinalar : Object.values(moshinalar || {})).forEach((m: any) =>
+      (Array.isArray(m?.rulonlar) ? m.rulonlar : []).forEach((r: any) => {
+        const n = parseFloat(String(r?.kg ?? '').replace(',', '.'));
+        if (!isNaN(n) && n > 0) {
+          kg += n;
+          rulon += 1;
+        }
+      })
+    );
+    return { sana, smena: String(smena), kg, rulon };
+  });
+}
+
 export default function AsosiyPanelSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
 
@@ -77,18 +113,26 @@ export default function AsosiyPanelSahifasi() {
     grafikMaxKg: 1
   });
 
-  const malumotlarniAnalizQilish = useCallback((oy: string) => {
+  const malumotlarniAnalizQilish = useCallback(async (oy: string) => {
     if (!oy) return;
 
     // Oylik va jarima umumiy hisob faylidan (Ishchilar sahifasi va bot bilan bir xil)
     const ishchilar = faolIshchilar(oqish(KALIT.ishchilar(oy), []));
     const saqlanganQoshimcha = localStorage.getItem(KALIT.operatorQoshimcha);
+    // Tanlangan oyda amal qilgan sozlamalar (o'tgan oylar eski stavka bilan)
+    const oySozlama = oySozlamasi(
+      oy,
+      {
+        lavozimlar: oqish(KALIT.lavozimlar, STANDART_LAVOZIMLAR),
+        operatorQoshimcha: saqlanganQoshimcha !== null ? Number(saqlanganQoshimcha) : STANDART_OPERATOR_QOSHIMCHA,
+        brakStavkalari: { ...STANDART_BRAK_STAVKALARI, ...oqish(KALIT.brakStavkalari, {}) }
+      },
+      oqish(KALIT.sozlamaTarixi, {})
+    );
     const manbalar = {
       davomat: oqish(KALIT.davomat, {}),
-      lavozimlar: oqish(KALIT.lavozimlar, STANDART_LAVOZIMLAR),
-      operatorQoshimcha: saqlanganQoshimcha !== null ? Number(saqlanganQoshimcha) : STANDART_OPERATOR_QOSHIMCHA,
+      ...oySozlama,
       brakJadvali: oqish(KALIT.brakJadvali(oy), {}),
-      brakStavkalari: { ...STANDART_BRAK_STAVKALARI, ...oqish(KALIT.brakStavkalari, {}) },
       eslatmalar: ''
     };
 
@@ -134,64 +178,19 @@ export default function AsosiyPanelSahifasi() {
     const yillikOylarKg: Record<string, number> = {};
     const yillikOylarSoni: Record<string, number> = {};
 
-    const barchaSmenalarMap = new Map();
+    // Smenalar bo'yicha jami kg va rulon: avval bazadan (barcha kompyuterlardagi ma'lumot),
+    // baza ulanmagan bo'lsa shu kompyuterdagi nusxalardan
+    const joriyYilBoshi = `${oy.split('-')[0]}-01-01`;
+    const dan = kechaSanaStr < joriyYilBoshi ? kechaSanaStr : joriyYilBoshi;
+    const gacha = `${oy.split('-')[0]}-12-31` > bugunSanaStr ? `${oy.split('-')[0]}-12-31` : bugunSanaStr;
+    let smenaJamlari: { sana: string; smena: string; kg: number; rulon: number }[] | null = null;
+    try {
+      const res = await fetch(`/api/statistika?dan=${dan}&gacha=${gacha}`, { cache: 'no-store' });
+      if (res.ok) smenaJamlari = (await res.json()).smenalar;
+    } catch {}
+    if (!smenaJamlari) smenaJamlari = mahalliySmenaJamlari();
 
-    // 1. Arxiv smenalar
-    const arxivSmenalar = JSON.parse(localStorage.getItem('zavod_smena_arxivlari') || '[]');
-    arxivSmenalar.forEach((s: any) => {
-      if (s.sana && s.smena) {
-        barchaSmenalarMap.set(`${s.sana}_${s.smena}`, {
-          sana: s.sana,
-          smena: s.smena,
-          moshinaTafsilotlari: s.moshinaTafsilotlari
-        });
-      }
-    });
-
-    // 2. Aktiv smenalar
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('zavod_smena_') && !key.includes('arxiv')) {
-        try {
-          const data = JSON.parse(localStorage.getItem(key) || '{}');
-          if (data.sana && data.smena && Array.isArray(data.moshinalar)) {
-            barchaSmenalarMap.set(`${data.sana}_${data.smena}`, {
-              sana: data.sana,
-              smena: data.smena,
-              moshinaTafsilotlari: data.moshinalar
-            });
-          }
-        } catch (e) {
-          console.error("Aktiv smenani o'qishda xatolik:", e);
-        }
-      }
-    }
-
-    // Rulonlarning ham KG og'irligini, ham SONINI (ta) hisoblash
-    barchaSmenalarMap.forEach((smena: any) => {
-      let smenaKg = 0;
-      let smenaRulonSoni = 0;
-
-      const moshinalarList = Array.isArray(smena.moshinaTafsilotlari)
-        ? smena.moshinaTafsilotlari
-        : Object.values(smena.moshinaTafsilotlari || {});
-
-      moshinalarList.forEach((moshina: any) => {
-        if (moshina.rulonlar && Array.isArray(moshina.rulonlar)) {
-          moshina.rulonlar.forEach((rulon: any) => {
-            const kgStr = String(rulon.kg || '').trim().replace(',', '.');
-            const kgNum = parseFloat(kgStr);
-            if (!isNaN(kgNum) && kgNum > 0) {
-              smenaKg += kgNum;
-              smenaRulonSoni += 1;
-            }
-          });
-        }
-      });
-
-      const sSana = smena.sana || '';
-      const sSmena = String(smena.smena || '');
-
+    smenaJamlari.forEach(({ sana: sSana, smena: sSmena, kg: smenaKg, rulon: smenaRulonSoni }) => {
       if (sSana === kechaSanaStr) {
         if (sSmena.includes('DEN')) {
           y_kechaDenKg += smenaKg;
@@ -206,7 +205,6 @@ export default function AsosiyPanelSahifasi() {
         y_bugunJamiKg += smenaKg;
         y_bugunJamiSoni += smenaRulonSoni;
       }
-
       if (sSana) {
         const smenaOyi = sSana.slice(0, 7);
         yillikOylarKg[smenaOyi] = (yillikOylarKg[smenaOyi] || 0) + smenaKg;

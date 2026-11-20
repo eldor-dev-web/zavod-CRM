@@ -1,26 +1,28 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { KALIT, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, STANDART_OPERATOR_QOSHIMCHA, tarixniYangilash, type OySozlamasi } from '@/lib/hisob';
+import { oqish } from '@/lib/mahalliyXotira';
+import { oldingiOy, toshkentOy } from '@/lib/sana';
+import { MOSHINA_KALIT, moshinalarSoni } from '@/lib/moshina';
 
 export default function SozlamalarSahifasi() {
-  const [operatorQoshimcha, setOperatorQoshimcha] = useState<number>(20000);
+  const [operatorQoshimcha, setOperatorQoshimcha] = useState<number>(STANDART_OPERATOR_QOSHIMCHA);
   const [lavozimlar, setLavozimlar] = useState<any[]>([]);
   const [yangiLavozimNomi, setYangiLavozimNomi] = useState('');
   const [yangiStavka, setYangiStavka] = useState('');
   const [brakMeyyori, setBrakMeyyori] = useState({ igna: 0, lux: 0 });
   
   // 🚀 YANGI: Jarima narxlarini boshqarish state'i
-  const [brakStavkalari, setBrakStavkalari] = useState({ ignaSinigi: 8000, luxXatosi: 10000 });
+  const [brakStavkalari, setBrakStavkalari] = useState(STANDART_BRAK_STAVKALARI);
+  const [moshinaSoni, setMoshinaSoni] = useState('35');
 
   useEffect(() => {
+    setMoshinaSoni(String(moshinalarSoni(localStorage.getItem(MOSHINA_KALIT.soni))));
     const saqlanganQoshimcha = localStorage.getItem('zavod_operator_qoshimcha');
     if (saqlanganQoshimcha !== null) setOperatorQoshimcha(Number(saqlanganQoshimcha));
 
     const saqlanganLavozimlar = localStorage.getItem('zavod_lavozimlar_bazasi');
-    let boshlangichLavozimlar = [
-      { id: 1, nomi: 'Operator', stavka: 175000 },
-      { id: 2, nomi: 'Nachalnik mexanik', stavka: 500000 },
-      { id: 3, nomi: 'mexaynik', stavka: 300000 },
-    ];
+    let boshlangichLavozimlar: any[] = STANDART_LAVOZIMLAR;
 
     if (saqlanganLavozimlar) {
       try { 
@@ -44,14 +46,25 @@ export default function SozlamalarSahifasi() {
     }
   }, []);
 
+  // Har bir o'zgarish shu oyning sozlamasi sifatida tarixga yoziladi.
+  // Shunda o'tgan oylarning oyligi eski stavka/narx bilan hisoblanishda davom etadi.
+  const tarixgaYozish = (ozgarish: Partial<OySozlamasi>) => {
+    const eski: OySozlamasi = { lavozimlar, operatorQoshimcha, brakStavkalari };
+    const oy = toshkentOy();
+    const yangiTarix = tarixniYangilash(oqish(KALIT.sozlamaTarixi, {}), oy, oldingiOy(oy), eski, { ...eski, ...ozgarish });
+    localStorage.setItem(KALIT.sozlamaTarixi, JSON.stringify(yangiTarix));
+  };
+
   const handleOperatorQoshimchaChange = (val: number) => {
     setOperatorQoshimcha(val);
     localStorage.setItem('zavod_operator_qoshimcha', val.toString());
+    tarixgaYozish({ operatorQoshimcha: val });
   };
 
   const lavozimniSaqlash = (yangiRoyxat: any[]) => {
     setLavozimlar(yangiRoyxat);
     localStorage.setItem('zavod_lavozimlar_bazasi', JSON.stringify(yangiRoyxat));
+    tarixgaYozish({ lavozimlar: yangiRoyxat });
   };
 
   const handleOperatorStavkaChange = (yangiStavka: number) => {
@@ -89,6 +102,7 @@ export default function SozlamalarSahifasi() {
     const yangi = { ...brakStavkalari, [tur]: num };
     setBrakStavkalari(yangi);
     localStorage.setItem('zavod_brak_stavkalari', JSON.stringify(yangi));
+    tarixgaYozish({ brakStavkalari: yangi });
   };
 
   const operatorLavozim = lavozimlar.find(l => l.nomi.toLowerCase() === 'operator') || { id: 0, nomi: 'Operator', stavka: 175000 };
@@ -99,6 +113,7 @@ export default function SozlamalarSahifasi() {
       <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Zavod Sozlamalari (Nastroyka)</h1>
+          <p className="text-xs font-semibold text-gray-500 mt-1">O&apos;zgarishlar shu oydan boshlab amal qiladi — o&apos;tgan oylarning oyligi eski sozlama bilan qoladi</p>
         </div>
       </div>
 
@@ -164,6 +179,28 @@ export default function SozlamalarSahifasi() {
                 <label className="block text-xs font-bold text-blue-600 uppercase mb-2">Lux xatosi narxi (m)</label>
                 <input type="text" value={brakStavkalari.luxXatosi} onChange={(e) => narxniOzgartirish('luxXatosi', e.target.value)} className="w-full p-2.5 border border-blue-200 rounded-lg font-black text-blue-700 outline-none focus:border-blue-500 focus:bg-white transition-all text-right text-lg shadow-sm" placeholder="0" />
               </div>
+            </div>
+          </div>
+
+          {/* MOSHINALAR SONI (Texnik xizmat va Rulonlar uchun) */}
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+            <h2 className="text-base font-black text-gray-800 mb-2 pb-2 border-b border-gray-100 flex items-center gap-2">
+              <span>🏭</span> Moshinalar soni
+            </h2>
+            <div className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex justify-between items-center gap-3">
+              <span className="text-xs font-bold text-gray-600">MK-1 dan MK-{moshinalarSoni(moshinaSoni)} gacha</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={moshinaSoni}
+                onChange={(e) => setMoshinaSoni(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                onBlur={() => {
+                  const n = moshinalarSoni(moshinaSoni);
+                  setMoshinaSoni(String(n));
+                  localStorage.setItem(MOSHINA_KALIT.soni, String(n));
+                }}
+                className="w-20 p-2 border border-gray-300 rounded-lg font-black text-gray-800 outline-none focus:border-indigo-500 text-center"
+              />
             </div>
           </div>
 

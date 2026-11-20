@@ -3,8 +3,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { faolIshchilar, operatormi } from '@/lib/hisob';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { toshkentSana } from '@/lib/sana';
+import { MOSHINA_KALIT, MOSHINA_PREFIKSI, moshinaRaqami, moshinalarSoni } from '@/lib/moshina';
 
-export default function ApparatCard({ id, onDataChange, initialData, readOnly, joriySana, rol, isLoaded = true }: any) {
+// Rulon chiqqan vaqt: qurilma qaysi vaqt zonasida bo'lishidan qat'i nazar Toshkent soati
+const toshkentSoati = () =>
+  new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+
+export default function ApparatCard({ id, onDataChange, initialData, readOnly, joriySana, rol, isLoaded = true, raqamTakror = false }: any) {
   const [rulonlar, setRulonlar] = useState(
     initialData?.rulonlar?.length > 0 
       ? initialData.rulonlar 
@@ -22,6 +27,14 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
   });
 
   const masterHuquqi = rol === 'admin' || rol === 'master';
+
+  // Moshina raqami: "MK-" oldindan turadi, faqat raqam yoziladi (1 dan moshinalar sonigacha)
+  const [moshinaSoni, setMoshinaSoni] = useState(35);
+  useEffect(() => {
+    setMoshinaSoni(moshinalarSoni(localStorage.getItem(MOSHINA_KALIT.soni)));
+  }, []);
+  const raqamSoni = moshinaRaqami(info.raqam);
+  const raqamXato = !!info.raqam && (!raqamSoni || raqamSoni > moshinaSoni);
   const kontrolchiHuquqi = rol === 'admin' || rol === 'kontrolchi';
 
   const [operatorlarList, setOperatorlarList] = useState<any[]>([]);
@@ -89,21 +102,17 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
   const handleKgChange = (index: number, qiymat: string) => {
     if (readOnly || !kontrolchiHuquqi) return; 
     const tozalanganQiymat = qiymat.replace(',', '.');
-    
-    let yangiRulonlar = [...rulonlar];
-    yangiRulonlar[index].kg = tozalanganQiymat;
-    
+
+    // Nusxa ustida ishlaymiz (asl ma'lumotni to'g'ridan-to'g'ri o'zgartirmaymiz)
+    const yangiRulonlar = rulonlar.map((r: any) => ({ ...r }));
+    const joriy = yangiRulonlar[index];
+    joriy.kg = tozalanganQiymat;
     if (qiymat.trim() !== '') {
-      if (!yangiRulonlar[index].vaqt) {
-        const hozir = new Date();
-        const soat = hozir.getHours().toString().padStart(2, '0');
-        const minut = hozir.getMinutes().toString().padStart(2, '0');
-        yangiRulonlar[index].vaqt = `${soat}:${minut}`;
-      }
+      if (!joriy.vaqt) joriy.vaqt = toshkentSoati();
     } else {
-      yangiRulonlar[index].vaqt = ''; 
+      joriy.vaqt = '';
     }
-    
+
     if (index === yangiRulonlar.length - 1 && qiymat.trim() !== '') {
       yangiRulonlar.push({ id: yangiRulonlar.length + 1, kg: '', nuqsonlar: {}, vaqt: '' });
     }
@@ -113,7 +122,7 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
   const handleKgBlur = (index: number) => {
     if (readOnly || !kontrolchiHuquqi) return; 
     let yangiRulonlar = [...rulonlar];
-    if (yangiRulonlar[index].kg.trim() === '' && index !== yangiRulonlar.length - 1) {
+    if (String(yangiRulonlar[index].kg ?? '').trim() === '' && index !== yangiRulonlar.length - 1) {
       yangiRulonlar.splice(index, 1);
       yangiRulonlar = yangiRulonlar.map((r, idx) => ({ ...r, id: idx + 1 }));
       setRulonlar(yangiRulonlar);
@@ -122,8 +131,9 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
 
   const handleNuqsonChange = (index: number, nuqsonNomi: string, qiymat: string) => {
     if (readOnly || !kontrolchiHuquqi) return; 
-    const yangiRulonlar = [...rulonlar];
-    yangiRulonlar[index].nuqsonlar[nuqsonNomi] = qiymat;
+    const yangiRulonlar = rulonlar.map((r: any, i: number) =>
+      i === index ? { ...r, nuqsonlar: { ...(r.nuqsonlar || {}), [nuqsonNomi]: qiymat } } : r
+    );
     setRulonlar(yangiRulonlar);
   };
 
@@ -146,13 +156,27 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
         <table className="w-full text-xs sm:text-sm border-collapse text-center text-slate-800 min-w-max">
           <thead>
             <tr>
-              <td rowSpan={3} className="border-r border-b border-slate-300 bg-slate-100 p-0 w-24 sm:w-32 align-middle sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
-                <input 
-                  type="text" disabled={readOnly || !masterHuquqi} value={info.raqam} 
-                  onChange={(e) => setInfo({...info, raqam: e.target.value})} 
-                  placeholder="MOSHINA" 
-                  className="w-full h-full p-2 sm:p-4 outline-none text-slate-800 font-black text-xl sm:text-2xl text-center bg-transparent uppercase disabled:text-slate-400 focus:bg-slate-200 transition-colors placeholder:text-sm" 
-                />
+              <td rowSpan={3} className={`border-r border-b border-slate-300 p-0 w-28 sm:w-36 align-middle sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] ${raqamXato || raqamTakror ? 'bg-rose-50' : 'bg-slate-100'}`}>
+                <label className="flex h-full flex-col items-center justify-center px-1 py-2 sm:py-4 cursor-text">
+                  <span className="flex items-baseline justify-center">
+                    <span className="font-black text-base sm:text-lg text-slate-400">{MOSHINA_PREFIKSI}</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      disabled={readOnly || !masterHuquqi}
+                      value={raqamSoni ? String(raqamSoni) : ''}
+                      onChange={(e) => {
+                        const raqam = e.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 3);
+                        setInfo({ ...info, raqam: raqam ? `${MOSHINA_PREFIKSI}${raqam}` : '' });
+                      }}
+                      placeholder="?"
+                      aria-label="Moshina raqami"
+                      className={`w-12 sm:w-14 bg-transparent p-0 outline-none font-black text-xl sm:text-2xl text-left disabled:text-slate-400 placeholder:text-slate-300 ${raqamXato || raqamTakror ? 'text-rose-600' : 'text-slate-800'}`}
+                    />
+                  </span>
+                  {raqamXato && <span className="mt-1 text-[9px] font-bold leading-tight text-rose-600">1–{moshinaSoni} oralig&apos;ida</span>}
+                  {!raqamXato && raqamTakror && <span className="mt-1 text-[9px] font-bold leading-tight text-rose-600">Takrorlandi</span>}
+                </label>
               </td>
               <td colSpan={rulonlar.length} className="border-b border-slate-300 p-0 min-w-[200px]">
                 <div className="flex w-full bg-slate-50 divide-x divide-slate-200">

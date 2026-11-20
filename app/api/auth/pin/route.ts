@@ -19,16 +19,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ xato: 'Noto\'g\'ri so\'rov' }, { status: 400 });
   }
 
-  const { admin, master, kontrolchi } = body || {};
-  if (![admin, master, kontrolchi].every(pinTogriMi)) {
+  const { admin, master, kontrolchi, mexanik } = body || {};
+  if (![admin, master, kontrolchi, mexanik].every(pinTogriMi)) {
     return NextResponse.json({ xato: 'Har bir PIN-kod aynan 6 ta raqamdan iborat bo\'lishi kerak' }, { status: 400 });
   }
-  if (new Set([admin, master, kontrolchi]).size !== 3) {
+  if (new Set([admin, master, kontrolchi, mexanik]).size !== 4) {
     return NextResponse.json({ xato: 'PIN-kodlar bir-biridan farq qilishi kerak' }, { status: 400 });
   }
 
   try {
-    await pinlarniSaqlash({ admin, master, kontrolchi });
+    await pinlarniSaqlash({ admin, master, kontrolchi, mexanik });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('PIN saqlash xatosi:', err);

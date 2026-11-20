@@ -38,3 +38,14 @@ export function sanagaKunQoshish(sana: string, kunlar: number): string {
   return t.toISOString().slice(0, 10);
 }
 
+
+// Toshkent vaqti: "2026-11-20 14:35" (hisoblagich yangilangan vaqtni yozish uchun)
+export function toshkentVaqtMatni(sana: Date = new Date()): string {
+  const soat = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Tashkent',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).format(sana);
+  return `${toshkentSana(sana)} ${soat}`;
+}

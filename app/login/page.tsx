@@ -25,7 +25,7 @@ export default function LoginSahifasi() {
         // Faqat ko'rsatish uchun (ism va rol). Ruxsatlarni server cookie orqali tekshiradi.
         localStorage.setItem('zavod_foydalanuvchi', JSON.stringify({ ism: data.ism, rol: data.rol }));
         localStorage.removeItem('zavod_parollar');
-        window.location.href = data.rol === 'admin' ? '/' : '/rulonlar';
+        window.location.href = data.boshSahifa || (data.rol === 'admin' ? '/' : '/rulonlar');
         return;
       }
 

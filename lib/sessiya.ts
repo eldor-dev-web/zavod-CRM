@@ -1,13 +1,22 @@
 // Sessiya (kirish) tokenlarini yaratish va tekshirish.
 // Web Crypto ishlatiladi: proxy/middleware'da ham, API route'larda ham bir xil ishlaydi.
 
-export type Rol = 'admin' | 'master' | 'kontrolchi';
-export const ROLLAR: Rol[] = ['admin', 'master', 'kontrolchi'];
+export type Rol = 'admin' | 'master' | 'kontrolchi' | 'mexanik';
+export const ROLLAR: Rol[] = ['admin', 'master', 'kontrolchi', 'mexanik'];
 
 export const ROL_ISMLARI: Record<Rol, string> = {
   admin: 'Boshqaruvchi',
   master: 'Smena Masteri',
-  kontrolchi: 'Kontrolchi'
+  kontrolchi: 'Kontrolchi',
+  mexanik: 'Mexanik'
+};
+
+// Har bir rol tizimga kirgach qaysi sahifadan boshlaydi
+export const BOSH_SAHIFA: Record<Rol, string> = {
+  admin: '/',
+  master: '/rulonlar',
+  kontrolchi: '/rulonlar',
+  mexanik: '/texnik'
 };
 
 // Sessiya cookie nomi va muddati (24 soat)

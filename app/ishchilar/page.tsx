@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import IshchilarJadvali from '@/components/IshchilarJadvali';
 import XodimModal from '@/components/XodimModal';
-import { ishchiOyligi, oyKunlariSoni, faolIshchilar, KALIT, STANDART_LAVOZIMLAR, STANDART_OPERATOR_QOSHIMCHA, type Ishchi } from '@/lib/hisob';
+import { ishchiOyligi, oyKunlariSoni, faolIshchilar, KALIT, oySozlamasi, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, STANDART_OPERATOR_QOSHIMCHA, type Ishchi, type SozlamaTarixi } from '@/lib/hisob';
+import { oqish } from '@/lib/mahalliyXotira';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { toshkentOy } from '@/lib/sana';
 
@@ -18,6 +19,7 @@ export default function IshchilarSahifasi() {
   const [lavozimlarBazasi, setLavozimlarBazasi] = useState<any[]>([]);
   const [davomat, setDavomat] = useState<Record<string, any>>({});
   const [operatorQoshimchaPuli, setOperatorQoshimchaPuli] = useState<number>(STANDART_OPERATOR_QOSHIMCHA);
+  const [sozlamaTarixi, setSozlamaTarixi] = useState<SozlamaTarixi>({});
 
   const [modalOchiq, setModalOchiq] = useState(false);
   const [tanlanganXodim, setTanlanganXodim] = useState<any | null>(null);
@@ -26,6 +28,7 @@ export default function IshchilarSahifasi() {
   useEffect(() => {
     setTanlanganOy(toshkentOy());
 
+    setSozlamaTarixi(oqish(KALIT.sozlamaTarixi, {}));
     const saqlanganQoshimcha = localStorage.getItem('zavod_operator_qoshimcha');
     if (saqlanganQoshimcha !== null) setOperatorQoshimchaPuli(Number(saqlanganQoshimcha));
 
@@ -104,11 +107,17 @@ export default function IshchilarSahifasi() {
   const kunlarMassivi = Array.from({ length: tanlanganOy ? oyKunlariSoni(tanlanganOy) : 30 }, (_, i) => i + 1);
 
   // Bu sahifada hisoblangan oylik ko'rsatiladi (brak va avans ushlanmasi faqat Telegram botda chiqadi)
+  // Tanlangan oyda amal qilgan stavkalar (o'tgan oylar eski sozlama bilan hisoblanadi)
+  const oySozlama = oySozlamasi(
+    tanlanganOy,
+    { lavozimlar: lavozimlarBazasi, operatorQoshimcha: operatorQoshimchaPuli, brakStavkalari: STANDART_BRAK_STAVKALARI },
+    sozlamaTarixi
+  );
   const oylikniHisoblash = (ishchi: Ishchi) =>
     ishchiOyligi(ishchi, tanlanganOy, {
       davomat,
-      lavozimlar: lavozimlarBazasi,
-      operatorQoshimcha: operatorQoshimchaPuli,
+      lavozimlar: oySozlama.lavozimlar,
+      operatorQoshimcha: oySozlama.operatorQoshimcha,
       brakJadvali: {},
       brakStavkalari: { ignaSinigi: 0, luxXatosi: 0 },
       eslatmalar: ''

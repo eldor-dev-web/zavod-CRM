@@ -3,44 +3,87 @@ import { faolIshchilar, KALIT } from '@/lib/hisob';
 import { joriyRol, oyIshchilari } from '@/lib/mahalliyXotira';
 import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
 import { DEN, NOCH, oldingiSmena, smenaQulflanganmi } from '@/lib/smena';
+import { navbatdami, smenaIdsi, smenaMahalliyKaliti, yuborishYokiNavbat } from '@/lib/sinxron';
+import { NUQSON_TURLARI } from '@/lib/arxiv';
+import { moshinaNomi, moshinaRaqami } from '@/lib/moshina';
 
 // Arxivga o'tgan smena: faqat admin o'zgartira oladi
 const faqatKorish = (sana: string) => smenaQulflanganmi(sana) && joriyRol() !== 'admin';
 
+// --- Smena ma'lumotini solishtirish uchun bir xil ko'rinishga keltirish ---
+// (bo'sh rulonlar olib tashlanadi, raqamlar bir xil yoziladi). Shu orqali "haqiqatan o'zgardimi" aniqlanadi.
+function kgTozalash(kg: unknown): string {
+  const t = String(kg ?? '').trim().replace(',', '.');
+  if (t === '') return '';
+  const n = parseFloat(t);
+  return Number.isFinite(n) ? String(n) : t;
+}
+
+export function moshinaniTozalash(m: any) {
+  const rulonlar = (Array.isArray(m?.rulonlar) ? m.rulonlar : [])
+    .map((r: any) => ({
+      kg: kgTozalash(r?.kg),
+      vaqt: String(r?.vaqt ?? ''),
+      nuqsonlar: Object.fromEntries(NUQSON_TURLARI.map((n) => [n, String(r?.nuqsonlar?.[n] ?? '').trim()]))
+    }))
+    .filter((r: any) => r.kg !== '' || Object.values(r.nuqsonlar).some((v) => v !== ''));
+  return {
+    raqam: String(m?.raqam ?? ''),
+    talimoti: String(m?.talimoti ?? ''),
+    brend: String(m?.brend ?? ''),
+    ip: String(m?.ip ?? ''),
+    lot: String(m?.lot ?? ''),
+    operator: String(m?.operator ?? ''),
+    operatorId: m?.operatorId ? String(m.operatorId) : '',
+    rulonlar
+  };
+}
+
+type MoshinaId = number | string;
+
+function tartibliMoshinalar(moshinalar: { id: MoshinaId }[], maqotlar: Record<string, any>) {
+  return moshinalar.map((m) => maqotlar[m.id]).filter(Boolean);
+}
+
+function suratOlish(kontrolchi: string, master: string, moshinalar: any[]) {
+  return JSON.stringify({ kontrolchi: kontrolchi || '', master: master || '', moshinalar: moshinalar.map(moshinaniTozalash) });
+}
+
+const smenaKaliti = (sana: string, smena: string) => `${sana}_${smena}`;
+const YANGILASH_MS = 15 * 1000; // boshqa kompyuterdagi o'zgarishlarni tekshirish oralig'i
+const TINCH_MS = 8 * 1000; // foydalanuvchi shuncha vaqt hech narsa yozmasa, yangilash mumkin
+
 export function useRulonlar() {
-  const [moshinalar, setMoshinalar] = useState<any[]>([]);
+  const [moshinalar, setMoshinalar] = useState<{ id: MoshinaId }[]>([]);
   const [sana, setSana] = useState('');
   const [smenaTuri, setSmenaTuri] = useState('');
   const [kontrolchi, setKontrolchi] = useState('');
   const [master, setMaster] = useState('');
-  const [moshinaMaqotlari, setMoshinaMaqotlari] = useState<Record<number, any>>({});
-  
+  const [moshinaMaqotlari, setMoshinaMaqotlari] = useState<Record<string, any>>({});
+
+  // Hozir ekrandagi ma'lumot QAYSI smenaga tegishli. Smena almashgan zahoti eski smena
+  // ma'lumoti yangi smena nomi bilan saqlanib ketmasligi uchun shu bilan tekshiramiz.
+  const [yuklanganKalit, setYuklanganKalit] = useState('');
+  const yuklanganKalitRef = useRef('');
+
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  
-  const isFirstSave = useRef(true); 
 
-  const dataRef = useRef({ sana, smenaTuri, kontrolchi, master, moshinaMaqotlari });
-  dataRef.current = { sana, smenaTuri, kontrolchi, master, moshinaMaqotlari };
+  const suratRef = useRef(''); // bazaga oxirgi yuborilgan (yoki yuklangan) holat
+  const oxirgiTahrirRef = useRef(0); // foydalanuvchi oxirgi marta qachon nimadir o'zgartirdi
+  const yuklanganVaqtRef = useRef(0);
+  const kutayotganYuborishRef = useRef<null | (() => void)>(null);
 
-  // 🚀 YANGI: Sanani avtomat "bugun"ga sakratish o'rniga, oxirgi tanlangan xotirani o'qiymiz
+  // 1. Ochilganda: master oxirgi tanlagan sana va smena (smenani master o'zi almashtiradi)
   useEffect(() => {
     const saqlanganSana = localStorage.getItem('zavod_oxirgi_sana');
     const saqlanganSmena = localStorage.getItem('zavod_oxirgi_smena');
-    
-    // Master oxirgi tanlagan sana va smena ochiladi (smenani master o'zi almashtiradi).
-    // Faqat u sana arxivga o'tib ketgan bo'lsa, bugungi kun ochiladi.
-    if (saqlanganSana && !smenaQulflanganmi(saqlanganSana)) {
-      setSana(saqlanganSana);
-    } else {
-      setSana(toshkentSana());
-    }
+    // Faqat u sana arxivga o'tib ketgan bo'lsa, bugungi kun ochiladi
+    setSana(saqlanganSana && !smenaQulflanganmi(saqlanganSana) ? saqlanganSana : toshkentSana());
     setSmenaTuri(saqlanganSmena || DEN);
-
     setIsInitialized(true);
   }, []);
 
-  // 🚀 YANGI: Qo'lda qaysi sana/smena tanlansa, shuni "xotiraga" mixlab qo'yamiz
   useEffect(() => {
     if (sana) localStorage.setItem('zavod_oxirgi_sana', sana);
   }, [sana]);
@@ -49,130 +92,152 @@ export function useRulonlar() {
     if (smenaTuri) localStorage.setItem('zavod_oxirgi_smena', smenaTuri);
   }, [smenaTuri]);
 
-  // QOLGAN BARCHA KODLAR O'ZGARISHSIZ QOLDI
-  useEffect(() => {
-    if (!sana || !smenaTuri || !isInitialized) return;
-
-    const localKey = `zavod_smena_${sana}_${smenaTuri}`;
-    const localDataStr = localStorage.getItem(localKey);
-    let localDataMavjud = false;
-
-    if (localDataStr) {
-      try {
-        const parsed = JSON.parse(localDataStr);
-        if (parsed && parsed.kontrolchi !== undefined) {
-          setKontrolchi(parsed.kontrolchi || '');
-          setMaster(parsed.master || '');
-          if (parsed.moshinalar && parsed.moshinalar.length > 0) {
-            const yangiMoshinalar: any[] = [];
-            const yangiMaqotlar: Record<number, any> = {};
-            parsed.moshinalar.forEach((m: any, index: number) => {
-              const id = m.id || Date.now() + index;
-              yangiMoshinalar.push({ id });
-              yangiMaqotlar[id] = m;
-            });
-            setMoshinalar(yangiMoshinalar);
-            setMoshinaMaqotlari(yangiMaqotlar);
-          } else {
-            // Agar moshinalar yo'q bo'lsa, tozalash kerak (yangi kunga o'tganda eski ma'lumot qolib ketmasligi uchun)
-            setMoshinalar([]);
-            setMoshinaMaqotlari({});
-          }
-          localDataMavjud = true;
-          setIsLoaded(true); 
-        }
-      } catch (e) { console.log(e) }
-    } else {
-      // Localda bu kun uchun hech nima yo'q bo'lsa tozalash
-      setKontrolchi('');
-      setMaster('');
-      setMoshinalar([]);
-      setMoshinaMaqotlari({});
-    }
-
-    const bazadanOqish = async () => {
-      if (!localDataMavjud) setIsLoaded(false); 
-
-      try {
-        const res = await fetch(`/api/smena?sana=${sana}&smena=${encodeURIComponent(smenaTuri)}&t=${Date.now()}`, {
-          cache: 'no-store'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.smena) {
-            setKontrolchi(data.smena.kontrolchi || '');
-            setMaster(data.smena.master || '');
-            
-            if (data.smena.moshinalar && data.smena.moshinalar.length > 0) {
-              const yangiMoshinalar: any[] = [];
-              const yangiMaqotlar: Record<number, any> = {};
-              
-              data.smena.moshinalar.forEach((m: any, index: number) => {
-                const id = m.id || Date.now() + index; 
-                yangiMoshinalar.push({ id });
-                yangiMaqotlar[id] = m;
-              });
-              
-              setMoshinalar(yangiMoshinalar);
-              setMoshinaMaqotlari(yangiMaqotlar);
-
-              // "smena" nomi bilan saqlaymiz: Dashboard va arxiv shu nomdan o'qiydi
-              localStorage.setItem(localKey, JSON.stringify({
-                  sana, smena: smenaTuri, kontrolchi: data.smena.kontrolchi, master: data.smena.master, moshinalar: data.smena.moshinalar
-              }));
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Neon DB dan o'qishda xatolik:", e);
-      } finally {
-        setIsLoaded(true);
-        setTimeout(() => { isFirstSave.current = false; }, 300); 
-      }
-    };
-    
-    bazadanOqish();
-  }, [sana, smenaTuri, isInitialized]);
-
-  const bazagaSaqlash = useCallback(async (currentData: typeof dataRef.current) => {
-    if (!currentData.sana || faqatKorish(currentData.sana)) return;
-    try {
-      const payload = {
-        sana: currentData.sana,
-        smena: currentData.smenaTuri,
-        kontrolchi: currentData.kontrolchi,
-        master: currentData.master,
-        moshinalar: Object.values(currentData.moshinaMaqotlari)
-      };
-
-      localStorage.setItem(`zavod_smena_${currentData.sana}_${currentData.smenaTuri}`, JSON.stringify(payload));
-
-      await fetch('/api/smena', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        cache: 'no-store',
-        keepalive: true
-      });
-    } catch (error) {
-      console.error("Bazaga saqlashda xato:", error);
-    }
+  // Ma'lumotni ekranga qo'yish (bir smenaga tegishli hammasi birga)
+  const malumotniQollash = useCallback((d: any, kalit: string) => {
+    const royxat: any[] = Array.isArray(d?.moshinalar) ? d.moshinalar : Object.values(d?.moshinalar || {});
+    const idlar: { id: MoshinaId }[] = [];
+    const maqotlar: Record<string, any> = {};
+    const bosh = Date.now();
+    royxat.forEach((m, i) => {
+      const id: MoshinaId = m?.id ?? bosh + i;
+      idlar.push({ id });
+      maqotlar[id] = { ...m, id };
+    });
+    setKontrolchi(d?.kontrolchi || '');
+    setMaster(d?.master || '');
+    setMoshinalar(idlar);
+    setMoshinaMaqotlari(maqotlar);
+    setYuklanganKalit(kalit);
+    yuklanganKalitRef.current = kalit;
+    suratRef.current = suratOlish(d?.kontrolchi, d?.master, royxat);
   }, []);
 
+  // 2. Smena tanlanganda: avval shu kompyuterdagi nusxa, keyin bazadagi
   useEffect(() => {
-    if (!sana || !isLoaded) return;
+    if (!sana || !smenaTuri || !isInitialized) return;
+    let bekor = false;
+    const kalit = smenaKaliti(sana, smenaTuri);
+    const mahalliyKalit = smenaMahalliyKaliti(sana, smenaTuri);
 
-    if (isFirstSave.current) return; 
+    kutayotganYuborishRef.current = null;
+    oxirgiTahrirRef.current = 0;
+    yuklanganVaqtRef.current = Date.now();
 
-    const taymer = setTimeout(() => {
-      bazagaSaqlash({ sana, smenaTuri, kontrolchi, master, moshinaMaqotlari });
-    }, 1500); 
+    let mahalliy: any = null;
+    try {
+      mahalliy = JSON.parse(localStorage.getItem(mahalliyKalit) || 'null');
+    } catch {}
+    malumotniQollash(mahalliy || {}, kalit);
+    setIsLoaded(!!mahalliy);
 
+    (async () => {
+      try {
+        const res = await fetch(`/api/smena?sana=${sana}&smena=${encodeURIComponent(smenaTuri)}&t=${Date.now()}`, { cache: 'no-store' });
+        if (bekor || !res.ok) return;
+        const bazadagi = (await res.json())?.smena;
+        if (bekor || !bazadagi) return;
+
+        // Bazadagi nusxani faqat quyidagi hollarda qo'yamiz:
+        // - bu smenaning yuborilmagan (navbatdagi) o'zgarishi yo'q
+        // - foydalanuvchi yuklangandan beri hech narsa o'zgartirmagan
+        if (navbatdami(smenaIdsi(sana, smenaTuri))) return;
+        if (oxirgiTahrirRef.current > yuklanganVaqtRef.current) return;
+
+        malumotniQollash(bazadagi, kalit);
+        localStorage.setItem(
+          mahalliyKalit,
+          JSON.stringify({ sana, smena: smenaTuri, kontrolchi: bazadagi.kontrolchi, master: bazadagi.master, moshinalar: bazadagi.moshinalar })
+        );
+      } catch (e) {
+        console.error('Smenani bazadan o\'qib bo\'lmadi:', e);
+      } finally {
+        if (!bekor) setIsLoaded(true);
+      }
+    })();
+
+    return () => {
+      bekor = true;
+    };
+  }, [sana, smenaTuri, isInitialized, malumotniQollash]);
+
+  // 3. O'zgarish bo'lsa: darhol shu kompyuterga, 1.2 soniyadan keyin bazaga
+  useEffect(() => {
+    const kalit = smenaKaliti(sana, smenaTuri);
+    if (!sana || !isLoaded || yuklanganKalit !== kalit) return;
+
+    const royxat = tartibliMoshinalar(moshinalar, moshinaMaqotlari);
+    const surat = suratOlish(kontrolchi, master, royxat);
+    if (surat === suratRef.current) return; // haqiqatda hech narsa o'zgarmagan
+    if (faqatKorish(sana)) return;
+
+    oxirgiTahrirRef.current = Date.now();
+    const payload = {
+      sana,
+      smena: smenaTuri,
+      kontrolchi,
+      master,
+      moshinalar: royxat.map((m) => ({ id: m.id, ...moshinaniTozalash(m) }))
+    };
+    localStorage.setItem(smenaMahalliyKaliti(sana, smenaTuri), JSON.stringify(payload));
+
+    const yuborish = () => {
+      kutayotganYuborishRef.current = null;
+      suratRef.current = surat;
+      yuborishYokiNavbat(smenaIdsi(sana, smenaTuri));
+    };
+    kutayotganYuborishRef.current = yuborish;
+    const taymer = setTimeout(yuborish, 1200);
     return () => clearTimeout(taymer);
-  }, [sana, smenaTuri, kontrolchi, master, moshinaMaqotlari, isLoaded, bazagaSaqlash]);
+  }, [sana, smenaTuri, kontrolchi, master, moshinalar, moshinaMaqotlari, isLoaded, yuklanganKalit]);
 
+  // Sahifa yopilsa yoki boshqa oynaga o'tilsa, kutib turgan saqlashni darhol yuborish
+  useEffect(() => {
+    const yashirindi = () => {
+      if (document.visibilityState === 'hidden') kutayotganYuborishRef.current?.();
+    };
+    document.addEventListener('visibilitychange', yashirindi);
+    window.addEventListener('pagehide', yashirindi);
+    return () => {
+      document.removeEventListener('visibilitychange', yashirindi);
+      window.removeEventListener('pagehide', yashirindi);
+    };
+  }, []);
+
+  // 4. Bir smenada bir nechta kompyuter (master va kontrolchi) ishlasa: har 15 soniyada bazani tekshirib,
+  // boshqa kompyuterda kiritilgan o'zgarishlarni ko'rsatamiz. Foydalanuvchi yozayotgan paytda tegmaymiz.
+  useEffect(() => {
+    if (!sana || !smenaTuri) return;
+    const kalit = smenaKaliti(sana, smenaTuri);
+    const tinchmi = () =>
+      document.visibilityState === 'visible' &&
+      !kutayotganYuborishRef.current &&
+      Date.now() - oxirgiTahrirRef.current >= TINCH_MS &&
+      yuklanganKalitRef.current === kalit &&
+      !navbatdami(smenaIdsi(sana, smenaTuri));
+
+    const taymer = setInterval(async () => {
+      if (!tinchmi()) return;
+      try {
+        const res = await fetch(`/api/smena?sana=${sana}&smena=${encodeURIComponent(smenaTuri)}&t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const bazadagi = (await res.json())?.smena;
+        if (!bazadagi || !tinchmi()) return;
+        const royxat = Array.isArray(bazadagi.moshinalar) ? bazadagi.moshinalar : [];
+        if (suratOlish(bazadagi.kontrolchi, bazadagi.master, royxat) === suratRef.current) return;
+        malumotniQollash(bazadagi, kalit);
+        localStorage.setItem(
+          smenaMahalliyKaliti(sana, smenaTuri),
+          JSON.stringify({ sana, smena: smenaTuri, kontrolchi: bazadagi.kontrolchi, master: bazadagi.master, moshinalar: royxat })
+        );
+      } catch {}
+    }, YANGILASH_MS);
+    return () => clearInterval(taymer);
+  }, [sana, smenaTuri, malumotniQollash]);
+
+  // 5. Rulonlardagi nuqsonlardan operatorlar brakini Braklar jadvaliga avtomatik yozish
   useEffect(() => {
     if (!sana || !isInitialized || faqatKorish(sana)) return;
+    if (yuklanganKalit !== smenaKaliti(sana, smenaTuri)) return; // boshqa smenaning ma'lumoti hali ekranda
     const joriyYilOy = sana.slice(0, 7);
     const kun = Number(sana.split('-')[2]);
     const ishchilarBazasi = faolIshchilar(oyIshchilari(joriyYilOy));
@@ -233,12 +298,14 @@ export function useRulonlar() {
       brakTable[kalit].lux = (Number(brakTable[kalit].lux) || 0) + joriyBraklar[kalit].lux;
     });
 
-    localStorage.setItem(brakXotiraNomi, JSON.stringify(brakTable));
-    localStorage.setItem(shadowKey, JSON.stringify(joriyBraklar));
+    // Faqat haqiqatan o'zgargan bo'lsa yozamiz (bazaga ortiqcha so'rov ketmasin)
+    const yangiJadval = JSON.stringify(brakTable);
+    const yangiSoya = JSON.stringify(joriyBraklar);
+    if (localStorage.getItem(brakXotiraNomi) !== yangiJadval) localStorage.setItem(brakXotiraNomi, yangiJadval);
+    if (localStorage.getItem(shadowKey) !== yangiSoya) localStorage.setItem(shadowKey, yangiSoya);
 
     window.dispatchEvent(new Event('braklar_yangilandi'));
-
-  }, [moshinaMaqotlari, sana, smenaTuri, isInitialized]);
+  }, [moshinaMaqotlari, sana, smenaTuri, isInitialized, yuklanganKalit]);
 
   const moshinaQoshish = () => {
     const newId = Date.now();
@@ -249,14 +316,14 @@ export function useRulonlar() {
     }));
   };
   
-  const jadvalniOchirish = (idToRemove: number) => {
+  const jadvalniOchirish = (idToRemove: MoshinaId) => {
     if (window.confirm("Ushbu moshina jadvalini o'chirib yubormoqchimisiz?")) {
       setMoshinalar(prev => prev.filter(m => m.id !== idToRemove));
       setMoshinaMaqotlari(prev => { const yangi = { ...prev }; delete yangi[idToRemove]; return yangi; });
     }
   };
 
-  const handleMoshinaDataChange = (id: number, data: any) => setMoshinaMaqotlari(prev => ({ ...prev, [id]: data }));
+  const handleMoshinaDataChange = (id: MoshinaId, data: any) => setMoshinaMaqotlari(prev => ({ ...prev, [id]: data }));
 
   // Keyingi smenaga o'tish: DEN -> shu kunning NOCH, NOCH -> ertangi DEN
   const yangiSmenagaOtish = () => {
@@ -285,7 +352,7 @@ export function useRulonlar() {
     // Baza ulanmagan bo'lsa yoki u yerda bo'lmasa, shu kompyuterdagi nusxadan
     if (manbaMoshinalar.length === 0) {
       try {
-        const mahalliy = JSON.parse(localStorage.getItem(`zavod_smena_${oldingi.sana}_${oldingi.smena}`) || 'null');
+        const mahalliy = JSON.parse(localStorage.getItem(smenaMahalliyKaliti(oldingi.sana, oldingi.smena)) || 'null');
         const m = mahalliy?.moshinalar;
         manbaMoshinalar = Array.isArray(m) ? m : Object.values(m || {});
       } catch {}
@@ -295,18 +362,17 @@ export function useRulonlar() {
       return { qoshildi: 0, xato: `Oldingi smenada (${oldingi.sana.split('-').reverse().join('.')}, ${oldingi.smena.split(' ')[0]}) moshina topilmadi` };
     }
 
-    const borRaqamlar = new Set(
-      Object.values(moshinaMaqotlari).map((m: any) => String(m.raqam || '').trim().toUpperCase()).filter(Boolean)
-    );
+    // Raqam bo'yicha solishtiramiz: "12", "MK-12", "mk12" — bitta moshina
+    const borRaqamlar = new Set(Object.values(moshinaMaqotlari).map((m: any) => moshinaRaqami(m.raqam)).filter(Boolean));
     const boshId = Date.now();
     const yangilar = manbaMoshinalar
       .filter((m: any) => {
-        const raqam = String(m.raqam || '').trim().toUpperCase();
-        return !raqam || !borRaqamlar.has(raqam);
+        const n = moshinaRaqami(m.raqam);
+        return !n || !borRaqamlar.has(n);
       })
       .map((m: any, i: number) => ({
         id: boshId + i,
-        raqam: m.raqam || '',
+        raqam: moshinaRaqami(m.raqam) ? moshinaNomi(moshinaRaqami(m.raqam)!) : '',
         talimoti: m.talimoti || '',
         brend: m.brend || '',
         ip: m.ip || '',

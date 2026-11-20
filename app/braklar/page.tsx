@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import BraklarJadvali from '@/components/BraklarJadvali';
 import AvansBloknot from '@/components/AvanstBloknot.';
-import { brakHisobi, faolIshchilar, oyKunlariSoni, operatormi, KALIT, STANDART_BRAK_STAVKALARI, type Ishchi } from '@/lib/hisob';
+import { brakHisobi, faolIshchilar, oyKunlariSoni, operatormi, oySozlamasi, KALIT, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, type Ishchi } from '@/lib/hisob';
+import { oqish } from '@/lib/mahalliyXotira';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { toshkentOy } from '@/lib/sana';
 
@@ -85,7 +86,13 @@ export default function BraklarSahifasi() {
 
   // Umumiy hisob faylidan (Telegram bot ham xuddi shunday hisoblaydi)
   const operatorBrakHisobi = (ishchiId: any) => {
-    const b = brakHisobi(ishchiId, tanlanganOy, brakMaqomlari, brakStavkalari);
+    // Tanlangan oyda amal qilgan narxlar (o'tgan oylar eski narx bilan)
+    const oyNarxlari = oySozlamasi(
+      tanlanganOy,
+      { lavozimlar: STANDART_LAVOZIMLAR, operatorQoshimcha: 0, brakStavkalari },
+      oqish(KALIT.sozlamaTarixi, {})
+    ).brakStavkalari;
+    const b = brakHisobi(ishchiId, tanlanganOy, brakMaqomlari, oyNarxlari);
     return { jamiIgna: b.igna, jamiLux: b.lux, summa: b.jarima };
   };
 

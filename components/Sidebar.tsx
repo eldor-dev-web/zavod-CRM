@@ -35,6 +35,11 @@ const MenuIcons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
     </svg>
   ),
+  Texnik: () => (
+    <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+    </svg>
+  ),
   Key: () => (
     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
@@ -58,7 +63,7 @@ export default function Sidebar() {
 
   // Admin uchun PIN-kodlarni o'zgartirish oynasi (PIN-kodlar faqat serverda saqlanadi)
   const [parolModalOchiq, setParolModalOchiq] = useState(false);
-  const [parollar, setParollar] = useState({ admin: '', master: '', kontrolchi: '' });
+  const [parollar, setParollar] = useState({ admin: '', master: '', kontrolchi: '', mexanik: '' });
   const [saqlandiXabar, setSaqlandiXabar] = useState(false);
   const [parolXatosi, setParolXatosi] = useState('');
   const [parolSaqlanmoqda, setParolSaqlanmoqda] = useState(false);
@@ -69,6 +74,7 @@ export default function Sidebar() {
     { nomi: 'Braklar Hisobi', manzil: '/braklar', ruxsat: ['admin', 'master', 'kontrolchi'], Icon: MenuIcons.Brak },
     { nomi: 'Ishchilar va Oylik', manzil: '/ishchilar', ruxsat: ['admin', 'master'], Icon: MenuIcons.Ishchilar },
     { nomi: 'Smenalar Arxivi', manzil: '/arxiv', ruxsat: ['admin'], Icon: MenuIcons.Arxiv },
+    { nomi: 'Texnik Xizmat', manzil: '/texnik', ruxsat: ['admin', 'mexanik'], Icon: MenuIcons.Texnik },
     { nomi: 'Sozlamalar', manzil: '/sozlamalar', ruxsat: ['admin'], Icon: MenuIcons.Sozlamalar }
   ];
 
@@ -98,6 +104,8 @@ export default function Sidebar() {
     if (hozirgiSahifa && !hozirgiSahifa.ruxsat.includes(user.rol)) {
       if (user.rol === 'admin') {
         router.push('/');
+      } else if (user.rol === 'mexanik') {
+        router.push('/texnik');
       } else {
         router.push('/rulonlar');
       }
@@ -133,12 +141,12 @@ export default function Sidebar() {
 
   const parollarniSaqlash = async () => {
     setParolXatosi('');
-    const { admin, master, kontrolchi } = parollar;
-    if (![admin, master, kontrolchi].every((p) => /^\d{6}$/.test(p))) {
+    const { admin, master, kontrolchi, mexanik } = parollar;
+    if (![admin, master, kontrolchi, mexanik].every((p) => /^\d{6}$/.test(p))) {
       setParolXatosi('Har bir PIN-kod aynan 6 ta raqam bo\'lishi kerak');
       return;
     }
-    if (new Set([admin, master, kontrolchi]).size !== 3) {
+    if (new Set([admin, master, kontrolchi, mexanik]).size !== 4) {
       setParolXatosi('PIN-kodlar bir-biridan farq qilishi kerak');
       return;
     }
@@ -277,7 +285,7 @@ export default function Sidebar() {
           <div className={`flex bg-slate-800/60 rounded-2xl border border-slate-700/40 transition-all ${ochiq ? 'items-center justify-between p-3' : 'items-center justify-between p-3 md:flex-col md:p-2 md:gap-2.5'}`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 min-w-[36px] bg-indigo-500/20 border border-indigo-400/30 rounded-xl flex items-center justify-center text-indigo-300 font-black text-sm">
-                {foydalanuvchi.rol === 'admin' ? '👑' : foydalanuvchi.rol === 'master' ? '👷‍♂️' : '🔍'}
+                {foydalanuvchi.rol === 'admin' ? '👑' : foydalanuvchi.rol === 'master' ? '👷‍♂️' : foydalanuvchi.rol === 'mexanik' ? '🔧' : '🔍'}
               </div>
 
               <div className={`min-w-0 ${!ochiq ? 'md:hidden' : ''}`}>
@@ -347,6 +355,18 @@ export default function Sidebar() {
                   maxLength={6}
                   value={parollar.kontrolchi}
                   onChange={(e) => setParollar({ ...parollar, kontrolchi: e.target.value.replace(/\D/g, '') })}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">🔧 Mexanik PIN-kodi</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={parollar.mexanik}
+                  onChange={(e) => setParollar({ ...parollar, mexanik: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"
                 />
               </div>

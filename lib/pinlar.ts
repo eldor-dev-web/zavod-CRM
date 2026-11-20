@@ -6,7 +6,7 @@ export const PIN_KALITI = 'zavod_parollar';
 
 export type PinKodlar = Record<Rol, string>;
 
-const STANDART_PINLAR: PinKodlar = { admin: '111111', master: '222222', kontrolchi: '333333' };
+const STANDART_PINLAR: PinKodlar = { admin: '111111', master: '222222', kontrolchi: '333333', mexanik: '444444' };
 
 export const pinTogriMi = (pin: unknown): pin is string => typeof pin === 'string' && /^\d{6}$/.test(pin);
 
@@ -30,7 +30,8 @@ export async function pinlarniOlish(): Promise<PinKodlar> {
       return {
         admin: pinTogriMi(saqlangan.admin) ? saqlangan.admin : STANDART_PINLAR.admin,
         master: pinTogriMi(saqlangan.master) ? saqlangan.master : STANDART_PINLAR.master,
-        kontrolchi: pinTogriMi(saqlangan.kontrolchi) ? saqlangan.kontrolchi : STANDART_PINLAR.kontrolchi
+        kontrolchi: pinTogriMi(saqlangan.kontrolchi) ? saqlangan.kontrolchi : STANDART_PINLAR.kontrolchi,
+        mexanik: pinTogriMi(saqlangan.mexanik) ? saqlangan.mexanik : STANDART_PINLAR.mexanik
       };
     }
   } catch (err) {

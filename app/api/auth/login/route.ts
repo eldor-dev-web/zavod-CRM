@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pinlarniOlish, pinTogriMi } from '@/lib/pinlar';
-import { ROL_ISMLARI, ROLLAR, SESSIYA_COOKIE, SESSIYA_MUDDATI_SONIYA, sessiyaYaratish } from '@/lib/sessiya';
+import { BOSH_SAHIFA, ROL_ISMLARI, ROLLAR, SESSIYA_COOKIE, SESSIYA_MUDDATI_SONIYA, sessiyaYaratish } from '@/lib/sessiya';
 
 // PIN-ni taxmin qilib topishga urinishni to'xtatish: 5 daqiqada 10 ta noto'g'ri urinish
 const URINISH_LIMITI = 10;
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   urinishlar.delete(ip);
 
-  const javob = NextResponse.json({ rol, ism: ROL_ISMLARI[rol] });
+  const javob = NextResponse.json({ rol, ism: ROL_ISMLARI[rol], boshSahifa: BOSH_SAHIFA[rol] });
   javob.cookies.set(SESSIYA_COOKIE, await sessiyaYaratish(rol), {
     httpOnly: true,
     sameSite: 'lax',

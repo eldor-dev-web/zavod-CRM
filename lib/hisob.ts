@@ -23,7 +23,8 @@ export type BrakJadvali = Record<string, { igna?: number | string; lux?: number 
 // Standart qiymatlar (sozlamalarda hali hech narsa kiritilmagan bo'lsa)
 export const STANDART_LAVOZIMLAR: Lavozim[] = [
   { id: 1, nomi: 'Operator', stavka: 175000 },
-  { id: 2, nomi: 'Master 1', stavka: 220000 }
+  { id: 2, nomi: 'Nachalnik mexanik', stavka: 500000 },
+  { id: 3, nomi: 'mexaynik', stavka: 300000 }
 ];
 export const STANDART_OPERATOR_QOSHIMCHA = 20000;
 export const STANDART_BRAK_STAVKALARI: BrakStavkalari = { ignaSinigi: 8000, luxXatosi: 10000 };
@@ -37,8 +38,42 @@ export const KALIT = {
   brakStavkalari: 'zavod_brak_stavkalari',
   brakMeyyori: 'zavod_brak_meyyori',
   brakJadvali: (oy: string) => `zavod_brak_jadval_${oy}`,
-  eslatmalar: (oy: string) => `zavod_eslatmalar_${oy}`
+  eslatmalar: (oy: string) => `zavod_eslatmalar_${oy}`,
+  sozlamaTarixi: 'zavod_sozlamalar_tarixi'
 } as const;
+
+// --- SOZLAMALAR TARIXI ---
+// Admin stavka yoki narxni o'zgartirsa, o'tgan oylarning oyligi ESKI sozlama bilan hisoblanishi kerak.
+// Shuning uchun har oy uchun amal qilgan sozlama saqlanadi: { "2026-10": {...}, "2026-11": {...} }
+export type OySozlamasi = {
+  lavozimlar: Lavozim[];
+  operatorQoshimcha: number;
+  brakStavkalari: BrakStavkalari;
+};
+export type SozlamaTarixi = Record<string, Partial<OySozlamasi>>;
+
+// Berilgan oyda amal qilgan sozlama
+export function oySozlamasi(oy: string, joriy: OySozlamasi, tarix: SozlamaTarixi | null | undefined): OySozlamasi {
+  const oylar = Object.keys(tarix || {}).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
+  if (!tarix || oylar.length === 0) return joriy;
+  const oldingilar = oylar.filter((k) => k <= oy);
+  // Birinchi yozuvdan oldingi oylar uchun eng birinchi yozuv (o'shanda o'zgarishdan oldingi qiymatlar saqlangan)
+  const tanlangan = tarix[oldingilar.length ? oldingilar[oldingilar.length - 1] : oylar[0]] || {};
+  return {
+    lavozimlar: Array.isArray(tanlangan.lavozimlar) ? tanlangan.lavozimlar : joriy.lavozimlar,
+    operatorQoshimcha: tanlangan.operatorQoshimcha ?? joriy.operatorQoshimcha,
+    brakStavkalari: { ...joriy.brakStavkalari, ...(tanlangan.brakStavkalari || {}) }
+  };
+}
+
+// Sozlama o'zgarganda tarixni yangilash.
+// Agar joriy oydan oldingi yozuv bo'lmasa, o'tgan oy uchun ESKI qiymatlar ham yozib qo'yiladi.
+export function tarixniYangilash(tarix: SozlamaTarixi | null | undefined, joriyOy: string, oldingiOyKaliti: string, eski: OySozlamasi, yangi: OySozlamasi): SozlamaTarixi {
+  const natija: SozlamaTarixi = { ...(tarix || {}) };
+  if (!Object.keys(natija).some((k) => k < joriyOy)) natija[oldingiOyKaliti] = eski;
+  natija[joriyOy] = yangi;
+  return natija;
+}
 
 // Bazadagi qiymat ba'zan matn ko'rinishida saqlangan bo'ladi ("[...]"). Uni obyektga aylantiramiz.
 export function jsonOchish<T>(qiymat: unknown, standart: T): T {

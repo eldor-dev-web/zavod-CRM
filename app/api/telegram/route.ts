@@ -10,8 +10,10 @@ import {
   STANDART_LAVOZIMLAR,
   STANDART_OPERATOR_QOSHIMCHA,
   faolIshchilar,
+  oySozlamasi,
   type Ishchi,
-  type OylikManbalari
+  type OylikManbalari,
+  type SozlamaTarixi
 } from '@/lib/hisob';
 import { oldingiOy, toshkentOy } from '@/lib/sana';
 
@@ -65,20 +67,29 @@ async function oyIshchilari(oy: string): Promise<Ishchi[]> {
 }
 
 async function oylikManbalari(oy: string): Promise<OylikManbalari> {
-  const [davomat, lavozimlar, qoshimcha, brakJadvali, brakStavkalari, eslatmalar] = await Promise.all([
+  const [davomat, lavozimlar, qoshimcha, brakJadvali, brakStavkalari, eslatmalar, tarix] = await Promise.all([
     xotiradanOlish(KALIT.davomat, {}),
     xotiradanOlish(KALIT.lavozimlar, STANDART_LAVOZIMLAR),
     xotiradanOlish<unknown>(KALIT.operatorQoshimcha, STANDART_OPERATOR_QOSHIMCHA),
     xotiradanOlish(KALIT.brakJadvali(oy), {}),
     xotiradanOlish(KALIT.brakStavkalari, STANDART_BRAK_STAVKALARI),
-    xotiradanOlish<unknown>(KALIT.eslatmalar(oy), '')
+    xotiradanOlish<unknown>(KALIT.eslatmalar(oy), ''),
+    xotiradanOlish<SozlamaTarixi>(KALIT.sozlamaTarixi, {})
   ]);
+  // Shu oyda amal qilgan sozlamalar (o'tgan oylar eski stavka bilan)
+  const oySozlama = oySozlamasi(
+    oy,
+    {
+      lavozimlar: Array.isArray(lavozimlar) ? lavozimlar : STANDART_LAVOZIMLAR,
+      operatorQoshimcha: qoshimcha === null || qoshimcha === '' ? STANDART_OPERATOR_QOSHIMCHA : son(qoshimcha),
+      brakStavkalari: { ...STANDART_BRAK_STAVKALARI, ...brakStavkalari }
+    },
+    tarix
+  );
   return {
     davomat,
-    lavozimlar: Array.isArray(lavozimlar) ? lavozimlar : STANDART_LAVOZIMLAR,
-    operatorQoshimcha: qoshimcha === null || qoshimcha === '' ? STANDART_OPERATOR_QOSHIMCHA : son(qoshimcha),
+    ...oySozlama,
     brakJadvali,
-    brakStavkalari: { ...STANDART_BRAK_STAVKALARI, ...brakStavkalari },
     eslatmalar: String(eslatmalar ?? '')
   };
 }

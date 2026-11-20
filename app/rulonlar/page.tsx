@@ -4,6 +4,7 @@ import ApparatCard from '@/components/ApparatCard';
 import SmenaFormasi from '@/components/SmenaFormasi'; 
 import { useRulonlar } from '@/hooks/useRulonlar';
 import { oldingiSmena, smenaQisqa, smenaQulflanganmi } from '@/lib/smena';
+import { moshinaRaqami } from '@/lib/moshina';
 
 export default function RulonlarSahifasi() {
   const {
@@ -39,6 +40,17 @@ export default function RulonlarSahifasi() {
 
   // Eski (arxivga o'tgan) smenani faqat admin o'zgartiradi, boshqalar faqat ko'radi
   const faqatKorish = !!sana && smenaQulflanganmi(sana) && rol !== 'admin';
+
+  // Bir smenada bir moshina raqami ikki marta yozilsa, ikkalasi qizil bo'ladi
+  const raqamlarSoni: Record<number, number> = {};
+  moshinalar.forEach((m: any) => {
+    const n = moshinaRaqami(moshinaMaqotlari[m.id]?.raqam);
+    if (n) raqamlarSoni[n] = (raqamlarSoni[n] || 0) + 1;
+  });
+  const takrorlanadimi = (id: any) => {
+    const n = moshinaRaqami(moshinaMaqotlari[id]?.raqam);
+    return !!n && raqamlarSoni[n] > 1;
+  };
   const oldingi = sana && smenaTuri ? oldingiSmena(sana, smenaTuri) : null;
   const oldingiNomi = oldingi ? `${oldingi.sana.split('-').reverse().slice(0, 2).join('.')} ${smenaQisqa(oldingi.smena)}` : '';
   const masterHuquqi = (rol === 'admin' || rol === 'master') && !faqatKorish;
@@ -141,6 +153,7 @@ export default function RulonlarSahifasi() {
                 joriySana={sana}
                 rol={rol} // HUQUQNI APPARAT CARD GA JO'NATDIK
                 readOnly={faqatKorish}
+                raqamTakror={takrorlanadimi(moshina.id)}
               />
             </div>
           );

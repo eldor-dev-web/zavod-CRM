@@ -1,7 +1,7 @@
-// Eslatma: Next.js 16 da bu fayl nomi 'proxy.ts' ga o'zgargan. Keyingi qadamda nomini almashtiramiz.
+// Next.js 16: har bir so'rovdan oldin ishlaydi (avval middleware.ts deb atalardi)
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { SESSIYA_COOKIE, sessiyaniTekshirish, type Rol } from '@/lib/sessiya';
+import { BOSH_SAHIFA, SESSIYA_COOKIE, sessiyaniTekshirish, type Rol } from '@/lib/sessiya';
 
 // Tizimga kirmasdan ochiladigan API manzillar
 const OCHIQ_API = ['/api/auth/login', '/api/auth/logout', '/api/telegram'];
@@ -11,13 +11,14 @@ const SAHIFA_RUXSATLARI: { prefiks: string; rollar: Rol[] }[] = [
   { prefiks: '/ishchilar', rollar: ['admin', 'master'] },
   { prefiks: '/sozlamalar', rollar: ['admin'] },
   { prefiks: '/arxiv', rollar: ['admin'] },
+  { prefiks: '/texnik', rollar: ['admin', 'mexanik'] },
   { prefiks: '/braklar', rollar: ['admin', 'master', 'kontrolchi'] },
   { prefiks: '/rulonlar', rollar: ['admin', 'master', 'kontrolchi'] }
 ];
 
-const boshSahifa = (rol: Rol) => (rol === 'admin' ? '/' : '/rulonlar');
+const boshSahifa = (rol: Rol) => BOSH_SAHIFA[rol];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const rol = await sessiyaniTekshirish(request.cookies.get(SESSIYA_COOKIE)?.value);
 
@@ -38,7 +39,7 @@ export async function middleware(request: NextRequest) {
 
   // 4. Asosiy panel faqat admin uchun
   if (pathname === '/' && rol !== 'admin') {
-    return NextResponse.redirect(new URL('/rulonlar', request.url));
+    return NextResponse.redirect(new URL(boshSahifa(rol), request.url));
   }
 
   // 5. Qolgan sahifalar uchun rol tekshiruvi
