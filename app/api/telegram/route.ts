@@ -15,7 +15,7 @@ import {
   type OylikManbalari,
   type SozlamaTarixi
 } from '@/lib/hisob';
-import { oldingiOy, toshkentOy } from '@/lib/sana';
+import { oldingiOy, toshkentOy, toshkentSana } from '@/lib/sana';
 
 // Raqam so'raydigan doimiy tugma (har safar bosib oylikni ko'rish mumkin)
 const RAQAM_TUGMASI = {
@@ -118,26 +118,54 @@ async function hisobotMatni(ishchi: Ishchi, oy: string) {
   return qatorlar.join('\n');
 }
 
-// Ishchini raqami bo'yicha topish: avval joriy oy, topilmasa o'tgan oy
-async function ishchiVaOyniTopish(tozaTel: string): Promise<{ ishchi: Ishchi; oy: string } | null> {
-  const joriy = toshkentOy();
-  const oldingi = oldingiOy(joriy);
+// --- HISOBOT JADVALI ---
+// Bot faqat har oyning 1–5 kunlari ochiq va O'TGAN oyning hisobotini ko'rsatadi.
+// Bu kunlarda har bir ishchi hisobotni kuniga 1 marta ko'ra oladi.
+const OCHIQ_KUNLAR = 5;
+const SOROVLAR_KALITI = 'zavod_bot_sorovlar'; // { "901234567": "2026-12-02" } — oxirgi ko'rgan kuni
+
+const OY_NOMLARI = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+const oyNomi = (oy: string) => OY_NOMLARI[Number(oy.slice(5, 7)) - 1] || oy;
+
+function keyingiOyBoshi(oy: string) {
+  const [y, m] = oy.split('-').map(Number);
+  const keyingi = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  return `1-${oyNomi(keyingi)}`;
+}
+
+async function sorovlarniOqish(): Promise<Record<string, string>> {
+  const d = await xotiradanOlish<Record<string, string>>(SOROVLAR_KALITI, {});
+  return d && typeof d === 'object' ? d : {};
+}
+
+async function sorovniYozish(tozaTel: string, bugun: string) {
+  try {
+    const sorovlar = await sorovlarniOqish();
+    // Faqat joriy oyning yozuvlari saqlanadi (eski oylar o'chib ketadi)
+    const joriyOy = bugun.slice(0, 7);
+    const yangi: Record<string, string> = {};
+    Object.entries(sorovlar).forEach(([tel, sana]) => {
+      if (String(sana).startsWith(joriyOy)) yangi[tel] = sana;
+    });
+    yangi[tozaTel] = bugun;
+    await prisma.tizimXotira.upsert({
+      where: { kalit: SOROVLAR_KALITI },
+      update: { qiymat: yangi },
+      create: { kalit: SOROVLAR_KALITI, qiymat: yangi }
+    });
+  } catch (err) {
+    console.error('Bot so\'rovini yozib bo\'lmadi:', err);
+  }
+}
+
+// Ishchini o'tgan oy ro'yxatidan raqami bo'yicha topish (topilmasa joriy oy ro'yxatidan — ID bir xil)
+async function ishchiniTopish(tozaTel: string, hisobotOyi: string): Promise<Ishchi | null> {
   const mos = (i: Ishchi) => raqamniTozalash(i.telefon) === tozaTel;
-
-  const joriyIshchi = (await oyIshchilari(joriy)).find(mos);
-  if (joriyIshchi) return { ishchi: joriyIshchi, oy: joriy };
-
-  const oldingiIshchi = (await oyIshchilari(oldingi)).find(mos);
-  if (!oldingiIshchi) return null;
-
-  // Yangi oy ro'yxati hali saqlanmagan bo'lsa ham, shu oyda davomat bo'lsa joriy oyni ko'rsatamiz
-  const joriyManbalar = await oylikManbalari(joriy);
-  const joriyOylik = ishchiOyligi(oldingiIshchi, joriy, joriyManbalar);
-  return { ishchi: oldingiIshchi, oy: joriyOylik.jamiKun > 0 ? joriy : oldingi };
+  return (await oyIshchilari(hisobotOyi)).find(mos) || (await oyIshchilari(toshkentOy())).find(mos) || null;
 }
 
 // TELEGRAM WEBHOOK
-// Ishchi har safar raqamini tugma orqali yuboradi -> hisobot qaytadi. Bazaga hech narsa yozilmaydi.
+// Oyning 1–5 kunlari ishchi raqamini tugma orqali yuboradi -> o'tgan oy hisoboti qaytadi (kuniga 1 marta).
 export async function POST(req: Request) {
   // So'rov haqiqatan Telegramdan kelganini tekshirish (.env da TELEGRAM_WEBHOOK_SECRET bo'lsa)
   const webhookSiri = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -157,6 +185,17 @@ export async function POST(req: Request) {
     const chatId = message.chat.id;
     const contact = message.contact;
 
+    // Bugun hisobot ochiqmi (Toshkent vaqti bilan oyning 1–5 kunlari)
+    const bugun = toshkentSana();
+    const kun = Number(bugun.slice(8, 10));
+    const joriyOy = bugun.slice(0, 7);
+    const hisobotOyi = oldingiOy(joriyOy);
+    // Sinov uchun: Vercel'da BOT_SINOV_REJIMI=1 qo'yilsa, bot har kuni ochiq bo'ladi
+    const ochiq = kun <= OCHIQ_KUNLAR || process.env.BOT_SINOV_REJIMI === '1';
+    const yopiqMatn =
+      `Oylik hisobotlari har oyning 1–${OCHIQ_KUNLAR} kunlari ochiladi.\n` +
+      `Keyingi hisobot: <b>${keyingiOyBoshi(joriyOy)}</b> kuni (${oyNomi(joriyOy)} oyi uchun).`;
+
     // 1-HOLAT: Ishchi telefon raqamini yuborgan
     if (contact?.phone_number) {
       // Faqat O'Z raqamini qabul qilamiz (boshqa odamning kontaktini emas)
@@ -170,27 +209,54 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
-      const tozaTel = raqamniTozalash(contact.phone_number);
-      const topildi = tozaTel.length === 9 ? await ishchiVaOyniTopish(tozaTel) : null;
+      // Hisobot faqat oyning 1–5 kunlari
+      if (!ochiq) {
+        await telegramXabarYuborish(token, chatId, yopiqMatn, { remove_keyboard: true });
+        return NextResponse.json({ ok: true });
+      }
 
-      if (topildi) {
-        await telegramXabarYuborish(token, chatId, await hisobotMatni(topildi.ishchi, topildi.oy), RAQAM_TUGMASI);
-      } else {
+      const tozaTel = raqamniTozalash(contact.phone_number);
+      const ishchi = tozaTel.length === 9 ? await ishchiniTopish(tozaTel, hisobotOyi) : null;
+
+      if (!ishchi) {
         await telegramXabarYuborish(
           token,
           chatId,
           'Raqamingiz tizimdan topilmadi. Raqamingizni Ishchilar bo\'limiga kiritish uchun rahbarga murojaat qiling.',
           RAQAM_TUGMASI
         );
+        return NextResponse.json({ ok: true });
       }
+
+      // Kuniga 1 marta
+      const sorovlar = await sorovlarniOqish();
+      if (sorovlar[tozaTel] === bugun) {
+        const qolganKun = OCHIQ_KUNLAR - kun;
+        await telegramXabarYuborish(
+          token,
+          chatId,
+          qolganKun > 0
+            ? `Bugun hisobotingizni ko'rgansiz. Ertaga yana ko'rishingiz mumkin (${OCHIQ_KUNLAR}-${oyNomi(joriyOy)}gacha).`
+            : `Bugun hisobotingizni ko'rgansiz. Keyingi hisobot ${keyingiOyBoshi(joriyOy)} kuni ochiladi.`,
+          { remove_keyboard: true }
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      await telegramXabarYuborish(token, chatId, await hisobotMatni(ishchi, hisobotOyi), { remove_keyboard: true });
+      await sorovniYozish(tozaTel, bugun);
       return NextResponse.json({ ok: true });
     }
 
-    // 2-HOLAT: /start yoki boshqa har qanday xabar -> raqam so'raymiz
+    // 2-HOLAT: /start yoki boshqa har qanday xabar
+    if (!ochiq) {
+      await telegramXabarYuborish(token, chatId, yopiqMatn, { remove_keyboard: true });
+      return NextResponse.json({ ok: true });
+    }
     await telegramXabarYuborish(
       token,
       chatId,
-      'Oylik hisobotingizni ko\'rish uchun pastdagi tugmani bosib telefon raqamingizni tasdiqlang:',
+      `${oyNomi(hisobotOyi).replace(/^./, (h) => h.toUpperCase())} oyi hisobotingizni ko'rish uchun pastdagi tugmani bosib telefon raqamingizni tasdiqlang:`,
       RAQAM_TUGMASI
     );
     return NextResponse.json({ ok: true });

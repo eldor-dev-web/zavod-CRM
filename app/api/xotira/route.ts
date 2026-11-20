@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const barchaMalumot = await prisma.tizimXotira.findMany({
       where: {
         AND: [
-          { kalit: { notIn: [PIN_KALITI, 'zavod_telegram_bot_token', 'zavod_oxirgi_sana', 'zavod_oxirgi_smena', 'zavod_foydalanuvchi'] } },
+          { kalit: { notIn: [PIN_KALITI, 'zavod_telegram_bot_token', 'zavod_oxirgi_sana', 'zavod_oxirgi_smena', 'zavod_foydalanuvchi', 'zavod_bot_sorovlar'] } },
           { NOT: { kalit: { startsWith: 'zavod_smena_' } } }
         ]
       }
@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
     // Smenalar faqat /api/smena orqali saqlanadi
     if (kalit.startsWith('zavod_smena_')) {
       return NextResponse.json({ ok: true, eslatma: 'Smenalar alohida saqlanadi' }, { status: 200 });
+    }
+    // Bot so'rovlari faqat server (Telegram bot) tomonidan yoziladi
+    if (kalit === 'zavod_bot_sorovlar') {
+      return NextResponse.json({ ok: true, eslatma: 'Bot ma\'lumoti' }, { status: 200 });
     }
     if (kalit === PIN_KALITI) {
       return NextResponse.json({ xato: 'PIN-kodlar faqat maxsus oyna orqali o\'zgartiriladi' }, { status: 403 });
