@@ -46,7 +46,11 @@ const Ikon = {
 };
 
 export default function ArxivSahifasi() {
-  const [sana, setSana] = useState(() => toshkentSana());
+  // Bugungi sana faqat brauzerda olinadi (sahifa yig'ilayotganda vaqtni o'qish taqiqlangan — cacheComponents)
+  const [sana, setSana] = useState('');
+  useEffect(() => {
+    setSana(toshkentSana());
+  }, []);
   const [smena, setSmena] = useState<'' | 'DEN' | 'NOCH'>('');
 
   const [smenalar, setSmenalar] = useState<ArxivSmena[]>([]);
