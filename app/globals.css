@@ -71,3 +71,9 @@ body {
   to { opacity: 1; transform: none; }
 }
 .zavod-paydo { animation: zavod-paydo 160ms ease-out; }
+
+/* Sahifa almashayotganda tepadagi yuklanish chizig'i */
+@keyframes zavod-yuklanish {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}

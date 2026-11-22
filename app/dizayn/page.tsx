@@ -47,7 +47,7 @@ export default function DizaynSahifasi() {
   const [yuklanmoqda, setYuklanmoqda] = useState(false);
 
   return (
-    <div className="p-4 md:p-0 max-w-5xl mx-auto space-y-6 pb-16">
+    <div className="max-w-5xl mx-auto space-y-6">
       <SahifaSarlavhasi
         sarlavha="Dizayn namunasi"
         izoh="Yangi uslubning barcha qismlari. Telefon va kompyuterda ochib ko'ring."
@@ -88,7 +88,7 @@ export default function DizaynSahifasi() {
       </div>
 
       <Karta sarlavha="Tugmalar" izoh="Telefonda 44 px, kompyuterda 40 px">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Tugma tur="asosiy" ikonka="tasdiq">Saqlash</Tugma>
           <Tugma ikonka="yuklab">Yuklab olish</Tugma>
           <Tugma tur="shaffof" ikonka="tahrir">Tahrirlash</Tugma>

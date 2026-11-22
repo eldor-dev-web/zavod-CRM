@@ -293,7 +293,7 @@ export default function TexnikXizmatSahifasi() {
   };
 
   return (
-    <div className="mx-auto min-h-screen max-w-7xl p-3 pt-16 sm:p-6 md:pt-6">
+    <div className="mx-auto max-w-7xl">
       {/* SARLAVHA */}
       <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>

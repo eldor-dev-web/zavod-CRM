@@ -30,8 +30,8 @@ export default function RootLayout({
         <Sidebar />
         
         {/* O'ng tomonda asosiy oyna */}
-        <main className="flex-1 p-0 md:p-8 overflow-y-auto bg-[#F8FAFC]">
-          {children}
+        <main className="flex-1 min-w-0 overflow-y-auto bg-fon">
+          <div className="mx-auto w-full max-w-[1600px] px-4 pt-16 pb-8 md:px-8 md:pt-8">{children}</div>
         </main>
       </body>
     </html>

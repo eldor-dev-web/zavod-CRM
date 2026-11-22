@@ -110,7 +110,7 @@ export default function SozlamalarSahifasi() {
   const qolganLavozimlar = lavozimlar.filter(l => l.nomi.toLowerCase() !== 'operator');
 
   return (
-    <div className="p-3 sm:p-6 max-w-7xl mx-auto font-sans bg-gray-50 min-h-screen">
+    <div className="max-w-7xl mx-auto">
       <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Zavod Sozlamalari (Nastroyka)</h1>

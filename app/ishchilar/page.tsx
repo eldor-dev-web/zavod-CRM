@@ -155,7 +155,7 @@ export default function IshchilarSahifasi() {
   const umumiyJamiOylik = haqiqiyIshchilar.reduce((jami, ishchi) => jami + oylikniHisoblash(ishchi).hisoblangan, 0);
 
   return (
-    <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans bg-[#F8FAFC] min-h-screen text-slate-800">
+    <div className="text-slate-800">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">

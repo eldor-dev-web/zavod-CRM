@@ -73,7 +73,7 @@ export default function LoginSahifasi() {
     'w-16 h-16 rounded-full bg-slate-50 hover:bg-white hover:shadow-md hover:border-slate-300 active:scale-95 active:bg-slate-100 border border-slate-200/70 text-2xl font-black text-slate-700 flex items-center justify-center transition-all mx-auto disabled:opacity-50';
 
   return (
-    <div className="min-h-dvh w-full flex items-center justify-center bg-slate-50 p-4 select-none">
+    <div className="min-h-[calc(100dvh-6rem)] md:min-h-[calc(100dvh-4rem)] w-full flex items-center justify-center select-none">
       <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-xl shadow-slate-900/5 w-full max-w-sm border border-slate-200/80 flex flex-col items-center">
         {/* 1. LOGO VA SARLAVHA */}
         <div className="text-center mb-8">

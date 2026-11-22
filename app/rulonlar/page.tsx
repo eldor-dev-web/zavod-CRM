@@ -113,7 +113,7 @@ export default function RulonlarSahifasi() {
   // (Kontrolchi huquqi asosan ApparatCard ichida ishlatiladi, u yog'ini komponenting ichiga uzatamiz)
 
   return (
-    <div className="p-3 sm:p-6 max-w-7xl mx-auto font-sans min-h-screen">
+    <div className="max-w-7xl mx-auto">
       
       {/* 🚀TEPADAGI STATUS BLOKI - MU'JAZ VA TOZA */}
       <div className="flex flex-wrap justify-between items-center mb-6 gap-4">

@@ -119,7 +119,7 @@ export default function ArxivSahifasi() {
   };
 
   return (
-    <div className="mx-auto min-h-screen max-w-7xl p-3 pt-16 sm:p-6 md:pt-6">
+    <div className="mx-auto max-w-7xl">
       {/* SARLAVHA */}
       <div className="mb-5">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-3xl">Smenalar arxivi</h1>

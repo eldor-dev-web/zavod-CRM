@@ -113,16 +113,16 @@ export default function BraklarSahifasi() {
   const tanlanganOperatorlarMassivi = brakBorOperatorlar.filter(op => op.id === tanlanganOperatorId);
 
   return (
-    <div className="p-2.5 sm:p-6 max-w-[100vw] mx-auto font-sans bg-slate-50 min-h-screen">
+    <div>
       
       {yopiq && (
-        <div className="mt-8 md:mt-0 mb-3 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-xs sm:text-sm font-black text-slate-700">
+        <div className="mb-3 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-xs sm:text-sm font-black text-slate-700">
           🔒 Oy yopilgan — bu oyning braklarini o&apos;zgartirib bo&apos;lmaydi
         </div>
       )}
 
       {/* 1. TEPADAGI PANEL (IKONKALAR BILAN) */}
-      <div className="bg-white px-4 py-3 rounded-2xl shadow-2xs border border-slate-200/80 mb-4 flex justify-between items-center gap-2 mt-8 md:mt-0">
+      <div className="bg-white px-4 py-3 rounded-2xl shadow-2xs border border-slate-200/80 mb-4 flex justify-between items-center gap-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">

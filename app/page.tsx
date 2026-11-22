@@ -263,7 +263,7 @@ export default function AsosiyPanelSahifasi() {
   }, [malumotlarniAnalizQilish]);
 
   return (
-    <div className="w-full font-sans bg-[#F8FAFC] min-h-screen text-slate-800 pb-10 sm:p-6 lg:p-8">
+    <div className="w-full text-slate-800">
       
       {/* 1. YUQORI SARLAVHA VA OY TANLAGICH */}
       <div className="flex flex-row justify-between items-center px-4 pt-5 sm:px-0 sm:pt-0 mb-5 sm:mb-7 gap-2">
