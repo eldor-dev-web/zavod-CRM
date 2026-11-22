@@ -297,14 +297,14 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
           {raqamMaydoni(true)}
           {raqamIzohi && <p className="text-[11px] font-semibold text-xato leading-tight">{raqamIzohi}</p>}
         </div>
-        <label className="flex-1 min-w-0 flex items-center gap-1.5">
-          <span className="shrink-0 text-xs md:text-sm text-matn-3">Talimoti</span>
+        <label className="flex-1 min-w-0 flex items-center">
+          <span className="sr-only">Talimoti</span>
           <input
             type="text"
             disabled={!infoOchiq}
             value={info.talimoti}
             onChange={(e) => setInfo({ ...info, talimoti: e.target.value })}
-            placeholder="kiriting"
+            placeholder="Talimoti"
             className={`${sarlavhaMaydon} min-w-0`}
           />
         </label>
