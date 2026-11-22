@@ -4,6 +4,7 @@ import { KALIT, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, STANDART_OPERATOR
 import { oqish } from '@/lib/mahalliyXotira';
 import { oldingiOy, toshkentOy } from '@/lib/sana';
 import { MOSHINA_KALIT, moshinalarSoni } from '@/lib/moshina';
+import PinKodlar from '@/components/PinKodlar';
 
 export default function SozlamalarSahifasi() {
   const [operatorQoshimcha, setOperatorQoshimcha] = useState<number>(STANDART_OPERATOR_QOSHIMCHA);
@@ -220,6 +221,9 @@ export default function SozlamalarSahifasi() {
               </div>
             </div>
           </div>
+
+          {/* 3. PIN-KODLAR (Sidebar'dan shu yerga ko'chirildi) */}
+          <PinKodlar />
 
         </div>
       </div>

@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   experimental: {
     agentFeedback: true,
   },
+  // Localhost'dagi Next.js "N" belgisini ko'rsatmaslik (saytga ta'siri yo'q)
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

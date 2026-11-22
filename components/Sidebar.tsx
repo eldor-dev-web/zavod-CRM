@@ -57,36 +57,62 @@ const MenuIcons = {
   )
 };
 
+type MenyuBandi = { nomi: string; manzil: string; ruxsat: string[]; Icon: () => React.ReactElement };
+
+// Menyu guruhlari: ishlatilishiga qarab. Rol ko'ra olmaydigan bandlar (va bo'sh guruhlar) chiqmaydi.
+const MENYU_GURUHLARI: { nomi: string; bandlar: MenyuBandi[] }[] = [
+  {
+    nomi: 'Ish',
+    bandlar: [
+      { nomi: 'Asosiy panel', manzil: '/', ruxsat: ['admin'], Icon: MenuIcons.Dashboard },
+      { nomi: 'Rulonlar hisobi', manzil: '/rulonlar', ruxsat: ['admin', 'master', 'kontrolchi'], Icon: MenuIcons.Rulon },
+      { nomi: 'Braklar hisobi', manzil: '/braklar', ruxsat: ['admin', 'master'], Icon: MenuIcons.Brak },
+      { nomi: 'Ishchilar va oylik', manzil: '/ishchilar', ruxsat: ['admin', 'master'], Icon: MenuIcons.Ishchilar },
+      { nomi: 'Avans daftari', manzil: '/avans-daftari', ruxsat: ['admin'], Icon: MenuIcons.Avans }
+    ]
+  },
+  {
+    nomi: 'Nazorat',
+    bandlar: [
+      { nomi: 'Smenalar arxivi', manzil: '/arxiv', ruxsat: ['admin'], Icon: MenuIcons.Arxiv },
+      { nomi: 'Texnik xizmat', manzil: '/texnik', ruxsat: ['admin', 'mexanik'], Icon: MenuIcons.Texnik }
+    ]
+  },
+  {
+    nomi: 'Tizim',
+    bandlar: [{ nomi: 'Sozlamalar', manzil: '/sozlamalar', ruxsat: ['admin'], Icon: MenuIcons.Sozlamalar }]
+  }
+];
+const BARCHA_BANDLAR = MENYU_GURUHLARI.flatMap((g) => g.bandlar);
+
+const ROL_BELGISI: Record<string, string> = { admin: 'A', master: 'M', kontrolchi: 'K', mexanik: 'T' };
+
+// Yon panel: doim YIG'ILGAN holatda (faqat ikonkalar) turadi, jadvallarni siqmaydi.
+// ▶ bosilsa sahifa USTIGA ochiladi (kontentni surmaydi); band tanlansa yoki tashqariga bosilsa yopiladi.
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [foydalanuvchi, setFoydalanuvchi] = useState<{ ism: string; rol: string } | null>(null);
   const [kutilmoqda, setKutilmoqda] = useState(true);
-
-  const [ochiq, setOchiq] = useState(true);
+  const [ochiq, setOchiq] = useState(false); // kompyuterda: ustiga ochilgan
   const [mobilOchiq, setMobilOchiq] = useState(false);
-
-  // Admin uchun PIN-kodlarni o'zgartirish oynasi (PIN-kodlar faqat serverda saqlanadi)
-  const [parolModalOchiq, setParolModalOchiq] = useState(false);
-  const [parollar, setParollar] = useState({ admin: '', master: '', kontrolchi: '', mexanik: '' });
-  const [saqlandiXabar, setSaqlandiXabar] = useState(false);
-  const [parolXatosi, setParolXatosi] = useState('');
-  const [parolSaqlanmoqda, setParolSaqlanmoqda] = useState(false);
-
-  const barchaMenyular = [
-    { nomi: 'Asosiy Panel', manzil: '/', ruxsat: ['admin'], Icon: MenuIcons.Dashboard },
-    { nomi: 'Rulonlar Hisobi', manzil: '/rulonlar', ruxsat: ['admin', 'master', 'kontrolchi'], Icon: MenuIcons.Rulon },
-    { nomi: 'Braklar Hisobi', manzil: '/braklar', ruxsat: ['admin', 'master', ], Icon: MenuIcons.Brak },
-    { nomi: 'Ishchilar va Oylik', manzil: '/ishchilar', ruxsat: ['admin', 'master'], Icon: MenuIcons.Ishchilar },
-    { nomi: 'Smenalar Arxivi', manzil: '/arxiv', ruxsat: ['admin'], Icon: MenuIcons.Arxiv },
-    { nomi: 'Texnik Xizmat', manzil: '/texnik', ruxsat: ['admin', 'mexanik'], Icon: MenuIcons.Texnik },
-    { nomi: 'Sozlamalar', manzil: '/sozlamalar', ruxsat: ['admin'], Icon: MenuIcons.Sozlamalar },
-    { nomi: 'Avans daftari', manzil: '/avans-daftari', ruxsat: ['admin'], Icon: MenuIcons.Avans }
-  ];
 
   useEffect(() => {
     setMobilOchiq(false);
+    setOchiq(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!ochiq && !mobilOchiq) return;
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOchiq(false);
+        setMobilOchiq(false);
+      }
+    };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [ochiq, mobilOchiq]);
 
   useEffect(() => {
     if (pathname === '/login') {
@@ -106,23 +132,15 @@ export default function Sidebar() {
     // Eski versiyadan qolgan ochiq PIN-kodlarni brauzerdan o'chirib tashlaymiz
     localStorage.removeItem('zavod_parollar');
 
-    const hozirgiSahifa = barchaMenyular.find((m) => m.manzil === pathname);
+    const hozirgiSahifa = BARCHA_BANDLAR.find((m) => m.manzil === pathname);
     if (hozirgiSahifa && !hozirgiSahifa.ruxsat.includes(user.rol)) {
-      if (user.rol === 'admin') {
-        router.push('/');
-      } else if (user.rol === 'mexanik') {
-        router.push('/texnik');
-      } else {
-        router.push('/rulonlar');
-      }
+      if (user.rol === 'admin') router.push('/');
+      else if (user.rol === 'mexanik') router.push('/texnik');
+      else router.push('/rulonlar');
     }
 
     setKutilmoqda(false);
   }, [pathname, router]);
-
-  const ruxsatEtilganMenyular = foydalanuvchi
-    ? barchaMenyular.filter((item) => item.ruxsat.includes(foydalanuvchi.rol))
-    : [];
 
   const tizimdanChiqish = async () => {
     try {
@@ -132,268 +150,147 @@ export default function Sidebar() {
     window.location.href = '/login';
   };
 
-  const parolModaliniOchish = async () => {
-    setParolXatosi('');
-    setSaqlandiXabar(false);
-    setParolModalOchiq(true);
-    try {
-      const res = await fetch('/api/auth/pin', { cache: 'no-store' });
-      if (res.ok) setParollar(await res.json());
-      else setParolXatosi('PIN-kodlarni yuklab bo\'lmadi');
-    } catch {
-      setParolXatosi('Serverga ulanib bo\'lmadi');
-    }
-  };
-
-  const parollarniSaqlash = async () => {
-    setParolXatosi('');
-    const { admin, master, kontrolchi, mexanik } = parollar;
-    if (![admin, master, kontrolchi, mexanik].every((p) => /^\d{6}$/.test(p))) {
-      setParolXatosi('Har bir PIN-kod aynan 6 ta raqam bo\'lishi kerak');
-      return;
-    }
-    if (new Set([admin, master, kontrolchi, mexanik]).size !== 4) {
-      setParolXatosi('PIN-kodlar bir-biridan farq qilishi kerak');
-      return;
-    }
-
-    setParolSaqlanmoqda(true);
-    try {
-      const res = await fetch('/api/auth/pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parollar)
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setParolXatosi(data.xato || 'Saqlab bo\'lmadi');
-        return;
-      }
-      setSaqlandiXabar(true);
-      setTimeout(() => {
-        setSaqlandiXabar(false);
-        setParolModalOchiq(false);
-      }, 900);
-    } catch {
-      setParolXatosi('Serverga ulanib bo\'lmadi');
-    } finally {
-      setParolSaqlanmoqda(false);
-    }
-  };
-
   if (pathname === '/login') return null;
   if (kutilmoqda || !foydalanuvchi) return null;
 
+  const guruhlar = MENYU_GURUHLARI.map((g) => ({ ...g, bandlar: g.bandlar.filter((b) => b.ruxsat.includes(foydalanuvchi.rol)) })).filter(
+    (g) => g.bandlar.length > 0
+  );
+  // Matnlar ko'rinadimi: telefonda panel ochilganda yoki kompyuterda ▶ bosilganda
+  const keng = ochiq || mobilOchiq;
+
   return (
     <>
-      {/* 1. MOBIL UCHUN GAMBURGER TUGMA */}
+      {/* Kompyuterda yig'ilgan panel uchun joy (panelning o'zi ustiga chiqib ochiladi) */}
+      <div className="hidden md:block w-[72px] shrink-0 print:hidden" aria-hidden="true" />
+
+      {/* TELEFON: menyu tugmasi */}
       <button
         onClick={() => setMobilOchiq(true)}
-        className="md:hidden print:hidden fixed top-3 left-3 z-40 p-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg border border-slate-700/80 flex items-center justify-center transition-all"
+        aria-label="Menyuni ochish"
+        className="md:hidden print:hidden fixed top-3 left-3 z-40 w-10 h-10 bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg border border-slate-700/80 flex items-center justify-center"
       >
-        <span className="text-lg leading-none">☰</span>
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
       </button>
 
-      {/* 2. MOBIL UCHUN QORONG'I ORQA FON */}
-      {mobilOchiq && (
+      {/* Orqa fon: telefonda qorong'i, kompyuterda shaffof (tashqariga bosilsa yopiladi) */}
+      {(mobilOchiq || ochiq) && (
         <div
-          className="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-xs transition-opacity"
-          onClick={() => setMobilOchiq(false)}
+          className={`print:hidden fixed inset-0 z-40 ${mobilOchiq ? 'bg-black/60 md:bg-black/20' : 'bg-black/20'}`}
+          onClick={() => {
+            setMobilOchiq(false);
+            setOchiq(false);
+          }}
         />
       )}
 
-      {/* 3. ASOSIY YON PANEL */}
-      <div
+      {/* YON PANEL */}
+      <aside
         className={`
-          print:hidden bg-slate-900 text-slate-300 flex flex-col h-[100dvh] shrink-0 border-r border-slate-800/80 z-50 transition-all duration-300
-          fixed top-0 left-0 bottom-0 md:sticky md:top-0
+          print:hidden fixed top-0 left-0 bottom-0 z-50 h-[100dvh] bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800/80 transition-all duration-200
           ${mobilOchiq ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
-          w-[260px] ${ochiq ? 'md:w-[260px]' : 'md:w-[80px]'}
+          w-[260px] ${ochiq ? 'md:w-[260px] md:shadow-2xl' : 'md:w-[72px]'}
         `}
       >
-        {/* LOGO VA YOPISH TUGMALARI */}
-        <div className={`p-4 flex items-center h-20 border-b border-slate-800/60 ${ochiq ? 'justify-between' : 'justify-between md:justify-center md:flex-col'}`}>
-          <div className={`flex items-center gap-3 ${!ochiq && 'md:hidden'}`}>
-            <div className="w-9 h-9 min-w-[36px] bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black shadow-md shadow-indigo-500/30">
+        {/* LOGO */}
+        <div className={`h-16 shrink-0 flex items-center border-b border-slate-800/60 px-3 ${keng ? 'justify-between' : 'justify-center'}`}>
+          {keng ? (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 shrink-0 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black">Z</div>
+              <div className="min-w-0">
+                <p className="text-base font-black text-white leading-none whitespace-nowrap">
+                  Zavod <span className="text-indigo-400">CRM</span>
+                </p>
+                <span className="text-[11px] font-semibold text-slate-500">Boshqaruv tizimi</span>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setOchiq(true)}
+              aria-label="Menyuni ochish"
+              title="Menyuni ochish"
+              className="w-9 h-9 bg-indigo-600 hover:bg-indigo-500 rounded-xl flex items-center justify-center text-white font-black"
+            >
               Z
-            </div>
-            <div>
-              <h1 className="text-lg font-black text-white tracking-tight whitespace-nowrap leading-none">
-                Zavod <span className="text-indigo-400">CRM</span>
-              </h1>
-              <span className="text-[10px] font-semibold text-slate-500">Boshqaruv tizimi</span>
-            </div>
-          </div>
-
-          {!ochiq && (
-            <div className="hidden md:flex w-9 h-9 mb-1 min-w-[36px] bg-indigo-600 rounded-xl items-center justify-center text-white font-black shadow-md shadow-indigo-500/30">
-              Z
-            </div>
+            </button>
           )}
-
-          <button
-            onClick={() => setOchiq(!ochiq)}
-            className="hidden md:flex w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg items-center justify-center transition-colors text-xs"
-          >
-            {ochiq ? '◀' : '▶'}
-          </button>
-
-          <button
-            onClick={() => setMobilOchiq(false)}
-            className="md:hidden w-8 h-8 bg-slate-800 hover:bg-rose-500 hover:text-white text-slate-400 rounded-lg flex items-center justify-center transition-colors font-bold"
-          >
-            ✕
-          </button>
+          {keng && (
+            <button
+              onClick={() => {
+                setOchiq(false);
+                setMobilOchiq(false);
+              }}
+              aria-label="Menyuni yopish"
+              className="w-8 h-8 shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* MENYU BANDLARI */}
-       <nav className="flex-1 min-h-0 px-3 space-y-1 mt-2 overflow-x-hidden overflow-y-auto custom-scrollbar">
-          {ruxsatEtilganMenyular.map((item, idx) => {
-            const faol = pathname === item.manzil;
-            const IconComp = item.Icon;
-            return (
-              <Link key={idx} href={item.manzil} title={!ochiq ? item.nomi : ''}>
-                <div
-                  className={`flex items-center rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                    faol
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/50'
-                      : 'text-slate-400 hover:bg-slate-800/80 hover:text-white'
-                  } ${ochiq ? 'gap-3 px-3.5 py-3' : 'gap-3 px-3.5 py-3 md:justify-center md:px-0 md:py-3'}`}
-                >
-                  <IconComp />
-                  <span className={`whitespace-nowrap transition-opacity duration-200 ${ochiq ? 'opacity-100 block' : 'opacity-100 block md:hidden md:opacity-0'}`}>
-                    {item.nomi}
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* ADMIN UCHUN PAROLLARNI BOSHQARISH TUGMASI */}
-        {foydalanuvchi.rol === 'admin' && (
-          <div className="px-3 pb-2 shrink-0">
-            <button
-              onClick={parolModaliniOchish}
-              title="PIN-kodlarni oʻzgartirish"
-              className={`w-full flex items-center rounded-xl text-xs font-bold bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/50 transition-all ${
-                ochiq ? 'gap-2.5 px-3.5 py-2.5 justify-start' : 'gap-2.5 px-3.5 py-2.5 md:justify-center md:px-0'
-              }`}
-            >
-              <MenuIcons.Key />
-              <span className={`${!ochiq ? 'md:hidden' : ''}`}>PIN-kodlarni boshqarish</span>
-            </button>
-          </div>
-        )}
-
-        {/* PROFIL VA CHIQISH QISMI */}
-        <div className="p-3 border-t border-slate-800/80 shrink-0">
-          <div className={`flex bg-slate-800/60 rounded-2xl border border-slate-700/40 transition-all ${ochiq ? 'items-center justify-between p-3' : 'items-center justify-between p-3 md:flex-col md:p-2 md:gap-2.5'}`}>
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 min-w-[36px] bg-indigo-500/20 border border-indigo-400/30 rounded-xl flex items-center justify-center text-indigo-300 font-black text-sm">
-                {foydalanuvchi.rol === 'admin' ? '👑' : foydalanuvchi.rol === 'master' ? '👷‍♂️' : foydalanuvchi.rol === 'mexanik' ? '🔧' : '🔍'}
-              </div>
-
-              <div className={`min-w-0 ${!ochiq ? 'md:hidden' : ''}`}>
-                <p className="text-xs font-black text-white truncate">{foydalanuvchi.ism}</p>
-                <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                  Faol sessiya
-                </p>
+        {/* MENYU (ko'p bo'lsa o'zi aylanadi — hech narsa yashirinmaydi) */}
+        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2.5 py-3 space-y-4">
+          {guruhlar.map((g) => (
+            <div key={g.nomi}>
+              {keng ? (
+                <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">{g.nomi}</p>
+              ) : (
+                <div className="mx-3 mb-2 border-t border-slate-800" />
+              )}
+              <div className="space-y-1">
+                {g.bandlar.map((item) => {
+                  const faol = pathname === item.manzil;
+                  const IconComp = item.Icon;
+                  return (
+                    <Link key={item.manzil} href={item.manzil} title={!keng ? item.nomi : undefined} aria-label={item.nomi}>
+                      <div
+                        className={`flex items-center h-11 rounded-xl text-sm font-bold transition-colors ${
+                          faol ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                        } ${keng ? 'gap-3 px-3' : 'justify-center'}`}
+                      >
+                        <IconComp />
+                        {keng && <span className="whitespace-nowrap truncate">{item.nomi}</span>}
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
+          ))}
+        </nav>
 
+        {/* PROFIL VA CHIQISH */}
+        <div className="shrink-0 p-2.5 border-t border-slate-800/80">
+          <div className={`flex items-center rounded-xl bg-slate-800/60 border border-slate-700/40 ${keng ? 'justify-between p-2.5 gap-2' : 'flex-col p-2 gap-2'}`}>
+            <div className="flex items-center gap-2.5 min-w-0" title={!keng ? foydalanuvchi.ism : undefined}>
+              <div className="w-9 h-9 shrink-0 bg-indigo-500/20 border border-indigo-400/30 rounded-xl flex items-center justify-center text-indigo-300 font-black text-sm">
+                {ROL_BELGISI[foydalanuvchi.rol] || '?'}
+              </div>
+              {keng && (
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-white truncate">{foydalanuvchi.ism}</p>
+                  <p className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                    Faol sessiya
+                  </p>
+                </div>
+              )}
+            </div>
             <button
               onClick={tizimdanChiqish}
-              className="w-8 h-8 min-w-[32px] bg-slate-700/80 hover:bg-rose-600 text-slate-300 hover:text-white rounded-xl flex items-center justify-center transition-all"
-              title="Rolni almashtirish / Chiqish"
+              aria-label="Chiqish"
+              title="Rolni almashtirish / chiqish"
+              className="w-9 h-9 shrink-0 bg-slate-700/80 hover:bg-rose-600 text-slate-300 hover:text-white rounded-xl flex items-center justify-center"
             >
               <MenuIcons.Logout />
             </button>
           </div>
         </div>
-      </div>
-
-      {/* 4. PAROLLARNI BOSHQARISH MODALI (FAQAT ADMIN UCHUN) */}
-      {parolModalOchiq && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-slate-800">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="text-base font-black text-slate-900">PIN-kodlarni boshqarish</h3>
-                <p className="text-xs text-slate-400 font-medium">6 xonali kirish parollarini yangilash</p>
-              </div>
-              <button
-                onClick={() => setParolModalOchiq(false)}
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3.5 mb-5">
-              <div>
-                <label className="text-xs font-bold text-slate-600 block mb-1">👑 Boshqaruvchi (Admin) PIN-kodi</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={parollar.admin}
-                  onChange={(e) => setParollar({ ...parollar, admin: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600 block mb-1">👷‍♂️ Smena Masteri PIN-kodi</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={parollar.master}
-                  onChange={(e) => setParollar({ ...parollar, master: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600 block mb-1">🔍 Kontrolchi PIN-kodi</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={parollar.kontrolchi}
-                  onChange={(e) => setParollar({ ...parollar, kontrolchi: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-600 block mb-1">🔧 Mexanik PIN-kodi</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={parollar.mexanik}
-                  onChange={(e) => setParollar({ ...parollar, mexanik: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-black text-base tracking-widest text-slate-900 focus:border-indigo-500 outline-none"
-                />
-              </div>
-            </div>
-
-            {parolXatosi && (
-              <div className="mb-3 px-3.5 py-2.5 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-600 text-xs font-bold">
-                {parolXatosi}
-              </div>
-            )}
-
-            <button
-              onClick={parollarniSaqlash}
-              disabled={parolSaqlanmoqda}
-              className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-black text-xs sm:text-sm shadow-md shadow-indigo-500/20 transition-all"
-            >
-              {saqlandiXabar ? '✓ Bazaga saqlandi!' : parolSaqlanmoqda ? 'Saqlanmoqda...' : 'Parollarni saqlash'}
-            </button>
-          </div>
-        </div>
-      )}
+      </aside>
     </>
   );
 }
