@@ -12,6 +12,7 @@ const SAHIFA_RUXSATLARI: { prefiks: string; rollar: Rol[] }[] = [
   { prefiks: '/ishchilar', rollar: ['admin', 'master'] },
   { prefiks: '/sozlamalar', rollar: ['admin'] },
   { prefiks: '/arxiv', rollar: ['admin'] },
+  { prefiks: '/dizayn', rollar: ['admin'] },
   { prefiks: '/avans-daftari', rollar: ['admin'] },
   { prefiks: '/texnik', rollar: ['admin', 'mexanik'] },
   { prefiks: '/braklar', rollar: ['admin', 'master',] },

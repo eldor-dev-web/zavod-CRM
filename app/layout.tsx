@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import BazaSinxron from "@/components/BazaSinxron";
+import UiQatlami from "@/components/ui/UiQatlami";
+
+// Inter: lotin (o', g'), kengaytirilgan lotin va kirill harflari; jadvaldagi raqamlar tekis turadi
+const inter = Inter({ subsets: ["latin", "latin-ext", "cyrillic"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Zavod CRM",
@@ -14,10 +19,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uz">
-      <body className="flex h-screen bg-gray-100 text-gray-900">
+    <html lang="uz" className={inter.variable}>
+      <body className="flex h-screen bg-fon text-matn font-sans">
         {/* PostgreSQL baza bilan avtomatik sinxronizatsiya */}
         <BazaSinxron />
+        {/* Tasdiqlash oynalari va xabarlar (toast) — butun ilova uchun bitta */}
+        <UiQatlami />
 
         {/* Chap tomonda menyu */}
         <Sidebar />

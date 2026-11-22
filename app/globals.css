@@ -1,11 +1,73 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #000000;
+/* ============================================================
+   ZAVOD CRM — DIZAYN ASOSI (B variant: sanoat kontrast)
+   Ranglar faqat MA'NO uchun: asosiy (indigo), yaxshi (yashil), diqqat (sariq), xato (qizil).
+   Qolgan hamma narsa oq/kulrang. Komponentlar shu nomlardan foydalanadi:
+   bg-fon, bg-sirt, border-chiziq, text-matn, text-matn-2, text-matn-3, bg-asosiy, text-xato ...
+   ============================================================ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-fon: #f6f7f9;          /* sahifa foni */
+  --color-sirt: #ffffff;         /* karta, oyna */
+  --color-sirt-2: #f1f5f9;       /* ichki blok, jadval sarlavhasi */
+  --color-chiziq: #e2e8f0;       /* ingichka chegara */
+  --color-chiziq-2: #cbd5e1;     /* kuchliroq chegara */
+  --color-matn: #0f172a;         /* asosiy matn */
+  --color-matn-2: #475569;       /* yordamchi matn */
+  --color-matn-3: #94a3b8;       /* izoh, placeholder */
+  --color-menyu: #0f172a;        /* yon panel */
+
+  --color-asosiy: #4f46e5;
+  --color-asosiy-toq: #4338ca;
+  --color-asosiy-och: #eef2ff;
+  --color-yaxshi: #047857;
+  --color-yaxshi-och: #ecfdf5;
+  --color-diqqat: #b45309;
+  --color-diqqat-och: #fffbeb;
+  --color-xato: #be123c;
+  --color-xato-fon: #e11d48;
+  --color-xato-och: #fff1f2;
+  --color-den: #f59e0b;
+  --color-den-och: #fef3c7;
+  --color-noch: #1e293b;
+
+  --radius-boshqaruv: 8px;  /* tugma, maydon */
+  --radius-karta: 12px;
+  --radius-oyna: 16px;
+}
+
+/* Qorong'i rejim (oxirgi bosqichda yoqiladi: <html data-mode="dark">) */
+:root[data-mode="dark"] {
+  --color-fon: #0b1120;
+  --color-sirt: #111827;
+  --color-sirt-2: #1e293b;
+  --color-chiziq: #1f2937;
+  --color-chiziq-2: #334155;
+  --color-matn: #f1f5f9;
+  --color-matn-2: #cbd5e1;
+  --color-matn-3: #64748b;
+  --color-menyu: #020617;
+  --color-asosiy-och: #1e1b4b;
+  --color-yaxshi: #34d399;
+  --color-yaxshi-och: #052e1f;
+  --color-diqqat: #fbbf24;
+  --color-diqqat-och: #2a1a03;
+  --color-xato: #fb7185;
+  --color-xato-och: #2a0a12;
+  --color-den-och: #3a2a05;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Oyna va xabarlar uchun yumshoq paydo bo'lish */
+@keyframes zavod-paydo {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.zavod-paydo { animation: zavod-paydo 160ms ease-out; }
