@@ -106,7 +106,6 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
 
   const [operatorlarList, setOperatorlarList] = useState<any[]>([]);
   const [qidiruv, setQidiruv] = useState(info.operator || '');
-  const [ochiqRulon, setOchiqRulon] = useState<number | null>(null); // telefonda nuqsonlari ochilgan rulon
   const [menyuOchiq, setMenyuOchiq] = useState(false);
   const menyuRef = useRef<HTMLDivElement>(null);
 
@@ -218,7 +217,6 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
     setQidiruv(op.ism);
     setInfo({ ...info, operator: op.ism, operatorId: op.id });
   };
-  const nuqsonSoni = (r: any) => nuqsonTurlari.filter((n) => String(r.nuqsonlar?.[n] ?? '').trim() !== '').length;
   const kgFormat = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 
   // Moshina raqami maydoni (MK- oldindan turadi, faqat raqam yoziladi)
@@ -284,212 +282,143 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
     );
   }
 
-  const kichikMaydon =
-    'w-full h-10 px-2 outline-none bg-transparent text-center text-sm font-medium text-matn placeholder:text-matn-3 disabled:text-matn-2 focus:bg-asosiy-och transition-colors';
+  // Nuqson ustunlari: telefonda qisqa nom (ekranga sig'ishi uchun), kompyuterda to'liq
+  const QISQA: Record<string, string> = { Patlak: 'Pat.', 'Lyc xato': 'Lyc', 'Igna siniq': 'Igna', 'Yog izi': "Yog'", Kumas: 'Kum.' };
+  const TOLIQ: Record<string, string> = { 'Yog izi': "Yog' izi" };
+
+  const sarlavhaMaydon =
+    'w-full h-10 px-2 rounded-boshqaruv bg-transparent text-base md:text-sm font-semibold text-matn outline-none placeholder:text-matn-3 placeholder:font-normal focus:bg-sirt focus:ring-2 focus:ring-asosiy/20 disabled:text-matn';
 
   return (
     <div className="w-full">
-      {/* ================= KOMPYUTER: JADVAL ================= */}
-      <div className="hidden md:block">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-sm border-collapse text-center text-matn min-w-max">
-            <thead>
-              <tr>
-                <td rowSpan={3} className={`border-r border-b border-chiziq p-0 w-36 align-middle sticky left-0 z-20 ${raqamQizil ? 'bg-xato-och' : 'bg-sirt-2'}`}>
-                  <div className="flex flex-col items-center justify-center px-2 py-3">
-                    {raqamMaydoni(true)}
-                    {raqamIzohi && <span className="mt-1 text-[11px] font-semibold text-xato">{raqamIzohi}</span>}
-                  </div>
-                </td>
-                <td colSpan={rulonlar.length} className="border-b border-chiziq p-0 min-w-[240px]">
-                  <div className="flex w-full divide-x divide-chiziq">
-                    <input type="text" disabled={!infoOchiq} value={info.talimoti} onChange={(e) => setInfo({ ...info, talimoti: e.target.value })} placeholder="Talimoti" className={`flex-[2] ${kichikMaydon}`} />
-                    <input type="text" disabled={!infoOchiq} value={info.brend} onChange={(e) => setInfo({ ...info, brend: e.target.value })} placeholder="Brend" className={`flex-1 ${kichikMaydon}`} />
-                    <div className="flex items-center px-1">{menyu}</div>
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td colSpan={rulonlar.length} className="border-b border-chiziq p-0 min-w-[240px]">
-                  <div className="flex w-full divide-x divide-chiziq">
-                    <input type="text" disabled={!infoOchiq} value={info.ip} onChange={(e) => setInfo({ ...info, ip: e.target.value })} placeholder="Ip" className={`flex-1 ${kichikMaydon}`} />
-                    <input type="text" disabled={!infoOchiq} value={info.lot} onChange={(e) => setInfo({ ...info, lot: e.target.value })} placeholder="Lot" className={`flex-1 ${kichikMaydon}`} />
-                    <div className="flex-[2]">
-                      <OperatorMaydoni
-                        qiymat={qidiruv}
-                        ozgartirish={operatorniOzgartirish}
-                        tanlash={operatorniTanlash}
-                        royxat={operatorlarList}
-                        ochiq={infoOchiq}
-                        yuklash={operatorlarniYuklash}
-                        className={`${kichikMaydon} font-semibold text-asosiy placeholder:text-indigo-300`}
-                      />
-                    </div>
-                  </div>
-                </td>
-              </tr>
-              <tr className="bg-sirt-2 border-b border-chiziq">
-                {rulonlar.map((r: any, idx: number) => (
-                  <td key={`header-${idx}`} className="border-r border-chiziq px-2 py-1.5 text-xs font-semibold text-matn-3 w-24">
-                    {r.id || idx + 1}
-                  </td>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-chiziq">
-                <td className="border-r border-chiziq px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-matn-3 bg-sirt-2 sticky left-0 z-10">Vaqti</td>
-                {rulonlar.map((r: any, idx: number) => (
-                  <td key={`vaqt-${idx}`} className="border-r border-chiziq px-2 py-2 text-sm font-medium text-matn-2 tabular-nums min-w-[80px]">
-                    {r.vaqt || '—'}
-                  </td>
-                ))}
-              </tr>
-              {nuqsonTurlari.map((nuqson, nIdx) => (
-                <tr key={`nuqson-row-${nIdx}`} className="border-b border-chiziq hover:bg-sirt-2/50">
-                  <td className="border-r border-chiziq px-4 py-2 text-left text-sm font-medium text-matn-2 bg-sirt-2 sticky left-0 z-10 whitespace-nowrap">{nuqson}</td>
-                  {rulonlar.map((r: any, idx: number) => (
-                    <td key={`nuqson-${nIdx}-${idx}`} className="border-r border-chiziq p-0 min-w-[80px]">
-                      <input
-                        type="text"
-                        disabled={!kgOchiq}
-                        value={r.nuqsonlar?.[nuqson] || ''}
-                        onChange={(e) => handleNuqsonChange(idx, nuqson, e.target.value)}
-                        className="w-full h-9 px-2 text-center text-sm font-medium text-matn outline-none bg-transparent disabled:text-matn-2 focus:bg-diqqat-och"
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              <tr className="bg-yaxshi-och/60">
-                <td className="border-r border-chiziq px-4 py-2 text-left text-sm font-semibold text-yaxshi bg-yaxshi-och sticky left-0 z-10 whitespace-nowrap">Rulon kg</td>
-                {rulonlar.map((r: any, idx: number) => (
-                  <td key={`kg-${idx}`} className="border-r border-chiziq p-0 min-w-[80px]">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      disabled={!kgOchiq}
-                      value={r.kg}
-                      onChange={(e) => handleKgChange(idx, e.target.value.replace(/[^\d.,]/g, ''))}
-                      onBlur={() => handleKgBlur(idx)}
-                      placeholder={idx === rulonlar.length - 1 ? '0,0' : ''}
-                      className="w-full h-12 px-2 text-center text-lg font-bold tabular-nums bg-transparent outline-none text-yaxshi disabled:text-yaxshi/60 focus:bg-emerald-100 placeholder:text-emerald-300"
-                    />
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+      {/* SARLAVHA: MK raqami + Talimoti (keng joyda) + jami */}
+      <div className={`flex items-center gap-2 px-3 md:px-4 pt-3 ${raqamQizil ? 'bg-xato-och' : ''}`}>
+        <div className="shrink-0">
+          {raqamMaydoni(true)}
+          {raqamIzohi && <p className="text-[11px] font-semibold text-xato leading-tight">{raqamIzohi}</p>}
         </div>
+        <label className="flex-1 min-w-0 flex items-center gap-1.5">
+          <span className="shrink-0 text-xs md:text-sm text-matn-3">Talimoti</span>
+          <input
+            type="text"
+            disabled={!infoOchiq}
+            value={info.talimoti}
+            onChange={(e) => setInfo({ ...info, talimoti: e.target.value })}
+            placeholder="kiriting"
+            className={`${sarlavhaMaydon} min-w-0`}
+          />
+        </label>
+        <span className="shrink-0 text-sm font-bold text-yaxshi tabular-nums">{kgFormat(jamiKg)} kg</span>
+        {menyu}
       </div>
 
-      {/* ================= TELEFON: KARTA ================= */}
-      <div className="md:hidden">
-        <div className={`flex items-start gap-2 p-3 border-b border-chiziq ${raqamQizil ? 'bg-xato-och' : ''}`}>
-          <div className="shrink-0">
-            {raqamMaydoni(false)}
-            {raqamIzohi && <p className="text-[11px] font-semibold text-xato">{raqamIzohi}</p>}
-          </div>
-          <div className="flex-1 min-w-0">
-            <OperatorMaydoni
-              qiymat={qidiruv}
-              ozgartirish={operatorniOzgartirish}
-              tanlash={operatorniTanlash}
-              royxat={operatorlarList}
-              ochiq={infoOchiq}
-              yuklash={operatorlarniYuklash}
-              className="w-full h-11 px-3 rounded-boshqaruv border border-chiziq-2 bg-sirt text-base font-semibold text-asosiy placeholder:text-matn-3 outline-none focus:border-asosiy disabled:bg-sirt-2 disabled:text-matn-2"
+      {/* Operator (keng) + Brend + IP + Lot */}
+      <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-1.5 px-3 md:px-4 pt-2 pb-3">
+        <label className="block min-w-0 rounded-boshqaruv bg-asosiy-och px-2 pt-1">
+          <span className="block text-[11px] font-semibold text-asosiy">Operator</span>
+          <OperatorMaydoni
+            qiymat={qidiruv}
+            ozgartirish={operatorniOzgartirish}
+            tanlash={operatorniTanlash}
+            royxat={operatorlarList}
+            ochiq={infoOchiq}
+            yuklash={operatorlarniYuklash}
+            className="w-full h-8 bg-transparent text-base md:text-sm font-semibold text-asosiy outline-none placeholder:text-indigo-300 placeholder:font-normal disabled:text-asosiy truncate"
+          />
+        </label>
+        {(
+          [
+            ['brend', 'Brend'],
+            ['ip', 'IP'],
+            ['lot', 'Lot']
+          ] as const
+        ).map(([k, nom]) => (
+          <label key={k} className="block min-w-0 rounded-boshqaruv bg-sirt-2 px-2 pt-1">
+            <span className="block text-[11px] font-semibold text-matn-3">{nom}</span>
+            <input
+              type="text"
+              disabled={!infoOchiq}
+              value={(info as any)[k]}
+              onChange={(e) => setInfo({ ...info, [k]: e.target.value })}
+              className="w-full h-8 bg-transparent text-base md:text-sm font-semibold text-matn outline-none disabled:text-matn"
             />
-          </div>
-          {menyu}
-        </div>
+          </label>
+        ))}
+      </div>
 
-        <div className="grid grid-cols-2 gap-2 p-3 border-b border-chiziq">
-          {(
-            [
-              ['talimoti', 'Talimoti'],
-              ['brend', 'Brend'],
-              ['ip', 'Ip'],
-              ['lot', 'Lot']
-            ] as const
-          ).map(([k, nom]) => (
-            <label key={k} className="block">
-              <span className="block text-xs font-semibold text-matn-3 mb-1">{nom}</span>
-              <input
-                type="text"
-                disabled={!infoOchiq}
-                value={(info as any)[k]}
-                onChange={(e) => setInfo({ ...info, [k]: e.target.value })}
-                className="w-full h-11 px-3 rounded-boshqaruv border border-chiziq-2 bg-sirt text-base text-matn outline-none focus:border-asosiy disabled:bg-sirt-2 disabled:text-matn-2"
-              />
-            </label>
+      {/* TIK JADVAL: har rulon bitta qator. Telefonda ham ekranga to'liq sig'adi (surilmaydi). */}
+      <table className="w-full table-fixed border-collapse text-center">
+        <colgroup>
+          <col className="w-7 md:w-12" />
+          <col className="w-[58px] md:w-28" />
+          {nuqsonTurlari.map((n) => (
+            <col key={n} />
           ))}
-        </div>
-
-        <ul className="divide-y divide-chiziq">
+        </colgroup>
+        <thead>
+          <tr className="bg-sirt-2 border-y border-chiziq text-[11px] md:text-xs font-semibold text-matn-2">
+            <th className="py-2 font-semibold">№</th>
+            <th className="py-2 font-semibold text-yaxshi">KG</th>
+            {nuqsonTurlari.map((n) => (
+              <th key={n} className="py-2 font-semibold truncate px-0.5">
+                <span className="md:hidden">{QISQA[n] || n}</span>
+                <span className="hidden md:inline">{TOLIQ[n] || n}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
           {rulonlar.map((r: any, idx: number) => {
-            const oxirgi = idx === rulonlar.length - 1;
-            const ns = nuqsonSoni(r);
-            const ochiq = ochiqRulon === idx;
+            const yangi = idx === rulonlar.length - 1 && String(r.kg ?? '').trim() === '';
             return (
-              <li key={`m-${idx}`} className="px-3 py-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 shrink-0 rounded-full bg-sirt-2 text-xs font-semibold text-matn-2 flex items-center justify-center">{r.id || idx + 1}</span>
-                  <div className="relative flex-1 min-w-0">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      disabled={!kgOchiq}
-                      value={r.kg}
-                      onChange={(e) => handleKgChange(idx, e.target.value.replace(/[^\d.,]/g, ''))}
-                      onBlur={() => handleKgBlur(idx)}
-                      placeholder={oxirgi ? 'Yangi rulon kg' : ''}
-                      className="w-full h-11 pl-3 pr-9 rounded-boshqaruv border border-chiziq-2 bg-sirt text-lg font-bold tabular-nums text-yaxshi placeholder:text-sm placeholder:font-medium placeholder:text-matn-3 outline-none focus:border-yaxshi focus:ring-2 focus:ring-emerald-500/20 disabled:bg-sirt-2"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-matn-3">kg</span>
-                  </div>
-                  <span className="w-11 shrink-0 text-xs font-medium text-matn-3 tabular-nums text-center">{r.vaqt || ''}</span>
-                  {!(oxirgi && String(r.kg ?? '').trim() === '') && (
-                    <button
-                      type="button"
-                      onClick={() => setOchiqRulon(ochiq ? null : idx)}
-                      aria-expanded={ochiq}
-                      className={`shrink-0 h-11 px-2.5 rounded-boshqaruv border text-xs font-semibold flex items-center gap-1 ${
-                        ns > 0 ? 'border-amber-200 bg-diqqat-och text-diqqat' : 'border-chiziq text-matn-2'
-                      }`}
-                    >
-                      Nuqson{ns > 0 ? ` (${ns})` : ''}
-                      <Ikonka nom="pastga" className={`w-3.5 h-3.5 transition-transform ${ochiq ? 'rotate-180' : ''}`} />
-                    </button>
-                  )}
-                </div>
-                {ochiq && (
-                  <div className="mt-2 grid grid-cols-2 gap-2 pl-9">
-                    {nuqsonTurlari.map((n) => (
-                      <label key={n} className="block">
-                        <span className="block text-xs font-semibold text-matn-3 mb-1">{n}</span>
+              <tr key={`r-${idx}`} className={`border-b border-chiziq ${yangi ? 'bg-yaxshi-och' : ''}`}>
+                <td className="text-xs md:text-sm font-medium text-matn-3 tabular-nums">{r.id || idx + 1}</td>
+                <td className="p-0">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    disabled={!kgOchiq}
+                    value={r.kg}
+                    onChange={(e) => handleKgChange(idx, e.target.value.replace(/[^\d.,]/g, ''))}
+                    onBlur={() => handleKgBlur(idx)}
+                    placeholder={yangi ? '+ kg' : ''}
+                    aria-label={`${idx + 1}-rulon kg`}
+                    className="w-full h-11 px-0.5 text-center text-base font-bold tabular-nums text-yaxshi bg-transparent outline-none placeholder:font-semibold placeholder:text-yaxshi/70 focus:bg-emerald-100 disabled:text-yaxshi"
+                  />
+                </td>
+                {nuqsonTurlari.map((n) => {
+                  const q = String(r.nuqsonlar?.[n] ?? '');
+                  const bor = q.trim() !== '';
+                  return (
+                    <td key={n} className={`p-0 border-l border-chiziq ${bor ? 'bg-xato-och' : ''}`}>
+                      {yangi ? null : (
                         <input
                           type="text"
+                          inputMode="numeric"
                           disabled={!kgOchiq}
-                          value={r.nuqsonlar?.[n] || ''}
+                          value={q}
                           onChange={(e) => handleNuqsonChange(idx, n, e.target.value)}
-                          className="w-full h-11 px-3 rounded-boshqaruv border border-chiziq-2 bg-sirt text-base text-matn outline-none focus:border-diqqat disabled:bg-sirt-2"
+                          placeholder="·"
+                          aria-label={`${idx + 1}-rulon ${n}`}
+                          className={`w-full h-11 px-0.5 text-center text-base bg-transparent outline-none placeholder:text-matn-3 focus:bg-diqqat-och ${
+                            bor ? 'font-bold text-xato disabled:text-xato' : 'text-matn disabled:text-matn-2'
+                          }`}
                         />
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </li>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
             );
           })}
-        </ul>
-      </div>
+        </tbody>
+      </table>
 
       {/* JAMI */}
-      <div className="flex items-center justify-between gap-3 px-3 md:px-4 py-2.5 border-t border-chiziq bg-sirt-2/60">
+      <div className="flex items-center justify-between gap-3 px-3 md:px-4 py-2.5 bg-sirt-2/60">
         <span className="text-xs font-semibold text-matn-3">{haqiqiyRulonlar.length} rulon</span>
         <span className="text-sm font-semibold text-matn-2">
-          Jami: <span className="text-lg font-bold text-yaxshi tabular-nums">{kgFormat(jamiKg)}</span> kg
+          Jami: <span className="text-base font-bold text-yaxshi tabular-nums">{kgFormat(jamiKg)}</span> kg
         </span>
       </div>
     </div>
