@@ -76,7 +76,7 @@ export default function Sidebar() {
   const barchaMenyular = [
     { nomi: 'Asosiy Panel', manzil: '/', ruxsat: ['admin'], Icon: MenuIcons.Dashboard },
     { nomi: 'Rulonlar Hisobi', manzil: '/rulonlar', ruxsat: ['admin', 'master', 'kontrolchi'], Icon: MenuIcons.Rulon },
-    { nomi: 'Braklar Hisobi', manzil: '/braklar', ruxsat: ['admin', 'master', 'kontrolchi'], Icon: MenuIcons.Brak },
+    { nomi: 'Braklar Hisobi', manzil: '/braklar', ruxsat: ['admin', 'master', ], Icon: MenuIcons.Brak },
     { nomi: 'Ishchilar va Oylik', manzil: '/ishchilar', ruxsat: ['admin', 'master'], Icon: MenuIcons.Ishchilar },
     { nomi: 'Smenalar Arxivi', manzil: '/arxiv', ruxsat: ['admin'], Icon: MenuIcons.Arxiv },
     { nomi: 'Texnik Xizmat', manzil: '/texnik', ruxsat: ['admin', 'mexanik'], Icon: MenuIcons.Texnik },
