@@ -285,17 +285,10 @@ export default function RulonlarSahifasi() {
         })}
       </div>
 
-      {/* 🚀 4. YANGI MOSHINA QO'SHISH TUGMASI (Faqat Master yoki Admin ko'radi) */}
+      {/* 🚀 4. YANGI MOSHINA QO'SHISH TUGMASI (Faqat Master yoki Admin ko'radi).
+          "Oldingi smenadan ko'chirish" faqat smena bo'sh bo'lganda (yuqorida) chiqadi — birinchi moshina paydo bo'lishi bilan yo'qoladi. */}
       {masterHuquqi && moshinalar.length > 0 && (
         <div className="mt-8 flex flex-col items-center justify-center gap-3 pb-12 sm:flex-row">
-          <button
-            onClick={kochirish}
-            disabled={kochirilmoqda}
-            title={`${oldingiNomi} smenasidagi, bu yerda hali yo'q moshinalarni qo'shadi`}
-            className="bg-white hover:bg-slate-50 text-slate-600 border-2 border-slate-200 font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 shadow-sm disabled:opacity-60"
-          >
-            ⇩ {kochirilmoqda ? 'Ko\'chirilmoqda...' : 'Oldingi smenadan ko\'chirish'}
-          </button>
           <button 
             onClick={moshinaQoshish} 
             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border-2 border-dashed border-indigo-200 hover:border-indigo-400 font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 shadow-sm"
