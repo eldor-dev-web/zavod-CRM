@@ -1,11 +1,11 @@
 import React from 'react';
-import { DEN, NOCH, tungimi } from '@/lib/smena';
+import { tungimi } from '@/lib/smena';
 
-// Smena formasi: sana tanlanmaydi (u joriy smenadan keladi), smena faqat aqlli tugmalar bilan almashtiriladi.
+// Smena formasi: sana tanlanmaydi (u joriy smenadan keladi). Smena — bitta yozuv; bosilganda yakunlash oynasi.
 export default function SmenaFormasi({
   sana,
   smenaTuri,
-  smenaTanlash,
+  yakunlashniOchish,
   tugmalarOchiq,
   kontrolchi,
   setKontrolchi,
@@ -14,7 +14,7 @@ export default function SmenaFormasi({
 }: {
   sana: string;
   smenaTuri: string;
-  smenaTanlash: (qiymat: string) => void;
+  yakunlashniOchish: () => void;
   tugmalarOchiq: boolean;
   kontrolchi: string;
   setKontrolchi: (v: string) => void;
@@ -24,30 +24,8 @@ export default function SmenaFormasi({
   const inputKlassi =
     'w-full border border-gray-300 rounded-lg p-2.5 text-base sm:text-sm font-semibold text-gray-800 bg-gray-50 outline-none focus:border-indigo-500 focus:bg-white';
 
-  const smenaTugmasi = (qiymat: string, belgi: string, nomi: string) => {
-    const tanlangan = tungimi(qiymat) === tungimi(smenaTuri || '');
-    return (
-      <button
-        type="button"
-        disabled={!tugmalarOchiq}
-        onClick={() => smenaTanlash(qiymat)}
-        className={`flex-1 rounded-lg px-2 py-1.5 transition-all disabled:cursor-not-allowed ${
-          tanlangan
-            ? tungimi(qiymat)
-              ? 'bg-slate-800 text-white shadow-sm'
-              : 'bg-amber-400 text-amber-950 shadow-sm'
-            : tugmalarOchiq
-              ? 'text-gray-500 hover:bg-gray-100'
-              : 'text-gray-300'
-        }`}
-      >
-        <span className="block text-center text-sm font-black leading-tight">
-          {belgi} {nomi}
-        </span>
-      </button>
-    );
-  };
-
+  // Faqat joriy smena ko'rinadi. Master/adminda bosiladi -> "yakunlaysizmi?" oynasi ochiladi.
+  const tun = tungimi(smenaTuri || '');
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div>
@@ -58,10 +36,18 @@ export default function SmenaFormasi({
       </div>
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Smena</label>
-        <div className="flex gap-1 rounded-xl border border-gray-300 bg-gray-50 p-1">
-          {smenaTugmasi(DEN, '☀️', 'DEN')}
-          {smenaTugmasi(NOCH, '🌙', 'NOCH')}
-        </div>
+        <button
+          type="button"
+          disabled={!tugmalarOchiq}
+          onClick={yakunlashniOchish}
+          title={tugmalarOchiq ? 'Smenani yakunlash' : undefined}
+          className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 transition-all disabled:cursor-default ${
+            tun ? 'bg-slate-800 text-white' : 'bg-amber-400 text-amber-950'
+          } ${tugmalarOchiq ? 'hover:brightness-110 active:scale-[0.98] shadow-sm' : ''}`}
+        >
+          <span className="text-sm font-black leading-tight">{tun ? '🌙 NOCH' : '☀️ DEN'}</span>
+          {tugmalarOchiq && <span className="text-base font-black opacity-70">⇄</span>}
+        </button>
       </div>
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Kontrolchi *</label>

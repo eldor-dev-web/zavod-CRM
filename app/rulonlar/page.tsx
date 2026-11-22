@@ -1,27 +1,43 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import ApparatCard from '@/components/ApparatCard';
-import SmenaFormasi from '@/components/SmenaFormasi'; 
+import SmenaFormasi from '@/components/SmenaFormasi';
+import SmenaYakunlashOynasi, { type SmenaXulosasi } from '@/components/SmenaYakunlashOynasi';
 import { useRulonlar } from '@/hooks/useRulonlar';
-import { almashuvEslatmasi, oldingiSmena, smenaQisqa, tungimi } from '@/lib/smena';
+import { almashuvEslatmasi, keyingiSmena, oldingiSmena, smenaQisqa, tungimi, type SmenaNuqtasi } from '@/lib/smena';
 import { moshinaRaqami } from '@/lib/moshina';
 
 export default function RulonlarSahifasi() {
   const {
     moshinalar, sana, smenaTuri, kontrolchi, setKontrolchi, master, setMaster,
     moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, oldingiSmenadanKochirish,
-    joriy, rejim, smenaTanlash, smenagaOtish, tugaganniOchish, joriygaQaytish
+    joriy, rejim, smenagaOtish, tugaganniOchish, joriygaQaytish
   } = useRulonlar();
 
   // Smena almashtirishda xato bo'lsa (internet yo'q, boshqa qurilma allaqachon almashtirgan)
   const [smenaXato, setSmenaXato] = useState('');
-  const smenaAlmashuvi = async (amal: () => Promise<string | null>) => {
+  // "Smenani yakunlaysizmi?" oynasi: qaysi smenaga o'tiladi (navbatdagi yoki eslatmadagi hozirgi)
+  const [yakunlashMaqsadi, setYakunlashMaqsadi] = useState<SmenaNuqtasi | null>(null);
+  const yakunlashniOchish = (maqsad?: SmenaNuqtasi) => {
+    if (!joriy) return;
     setSmenaXato('');
-    const xato = await amal();
-    if (xato) {
-      setSmenaXato(xato);
-      setTimeout(() => setSmenaXato(''), 7000);
-    }
+    setYakunlashMaqsadi(maqsad || keyingiSmena(joriy.sana, joriy.smena));
+  };
+
+  // Joriy smena xulosasi: kg yozilgan rulonlar, ular bor moshinalar va jami kg
+  const smenaXulosasi = (): SmenaXulosasi => {
+    let moshina = 0;
+    let rulon = 0;
+    let kg = 0;
+    moshinalar.forEach((m: any) => {
+      const toldirilgan = (moshinaMaqotlari[m.id]?.rulonlar || [])
+        .map((r: any) => parseFloat(String(r?.kg ?? '').replace(',', '.')))
+        .filter((n: number) => Number.isFinite(n) && n > 0);
+      if (toldirilgan.length > 0) moshina++;
+      rulon += toldirilgan.length;
+      kg += toldirilgan.reduce((j: number, n: number) => j + n, 0);
+    });
+    return { moshina, rulon, kg };
   };
   const qisqaNom = (s: { sana: string; smena: string }) =>
     `${s.sana.split('-').reverse().slice(0, 2).join('.')} ${tungimi(s.smena) ? '🌙 NOCH' : '☀️ DEN'}`;
@@ -126,7 +142,7 @@ export default function RulonlarSahifasi() {
           </span>
           <button
             type="button"
-            onClick={() => smenaAlmashuvi(() => smenagaOtish(eslatma))}
+            onClick={() => yakunlashniOchish(eslatma)}
             className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-sm font-black"
           >
             O&apos;tish
@@ -159,6 +175,16 @@ export default function RulonlarSahifasi() {
         </div>
       )}
 
+      {yakunlashMaqsadi && joriy && (
+        <SmenaYakunlashOynasi
+          joriy={joriy}
+          keyingi={yakunlashMaqsadi}
+          xulosa={smenaXulosasi()}
+          tasdiqlash={() => smenagaOtish(yakunlashMaqsadi)}
+          yopish={() => setYakunlashMaqsadi(null)}
+        />
+      )}
+
       {smenaXato && (
         <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs sm:text-sm font-bold text-rose-700">⚠️ {smenaXato}</div>
       )}
@@ -168,7 +194,7 @@ export default function RulonlarSahifasi() {
         <SmenaFormasi
           sana={sana}
           smenaTuri={smenaTuri}
-          smenaTanlash={(q) => smenaAlmashuvi(() => smenaTanlash(q))}
+          yakunlashniOchish={() => yakunlashniOchish()}
           tugmalarOchiq={smenaBoshqaruvchi && rejim === 'joriy'}
           kontrolchi={kontrolchi}
           setKontrolchi={setKontrolchi}
