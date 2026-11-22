@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { PIN_KALITI } from '@/lib/pinlar';
 import { sorovRoli, type Rol } from '@/lib/sessiya';
+import { kalitOyi, oyYopilganmi } from '@/lib/oyQulfi';
+import { toshkentSana } from '@/lib/sana';
 
 // Bu kalitlarni faqat admin o'zgartira oladi (Sozlamalar sahifasi)
 const FAQAT_ADMIN_KALITLAR = [
@@ -44,7 +46,7 @@ export async function GET(req: NextRequest) {
     const barchaMalumot = await prisma.tizimXotira.findMany({
       where: {
         AND: [
-          { kalit: { notIn: [PIN_KALITI, 'zavod_telegram_bot_token', 'zavod_oxirgi_sana', 'zavod_oxirgi_smena', 'zavod_foydalanuvchi', 'zavod_bot_sorovlar'] } },
+          { kalit: { notIn: [PIN_KALITI, 'zavod_telegram_bot_token', 'zavod_oxirgi_sana', 'zavod_oxirgi_smena', 'zavod_foydalanuvchi', 'zavod_bot_sorovlar', 'zavod_rad_etilganlar'] } },
           { NOT: { kalit: { startsWith: 'zavod_smena_' } } },
           // Smena hisobotlari qachon yuborilgani — faqat server uchun
           { NOT: { kalit: { startsWith: 'zavod_hisobot_' } } },
@@ -75,7 +77,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, eslatma: 'Smenalar alohida saqlanadi' }, { status: 200 });
     }
     // Bot so'rovlari faqat server (Telegram bot) tomonidan yoziladi
-    if (kalit === 'zavod_bot_sorovlar' || kalit === 'zavod_joriy_smena' || kalit.startsWith('zavod_hisobot_')) {
+    // Davomat endi katakma-katak /api/davomat orqali saqlanadi (butun jadval ustidan yozilmaydi)
+    if (kalit === 'zavod_xodim_davomati') {
+      return NextResponse.json({ ok: true, eslatma: 'Davomat /api/davomat orqali saqlanadi' }, { status: 200 });
+    }
+    // Oy yopilgan bo'lsa (6-sanadan keyin o'tgan oy): ishchilar, braklar, avans daftarini hech kim o'zgartira olmaydi
+    const oy = kalitOyi(kalit);
+    if (oy && oyYopilganmi(oy, toshkentSana())) {
+      return NextResponse.json({ xato: 'Oy yopilgan — o\'zgartirib bo\'lmaydi' }, { status: 403 });
+    }
+    if (kalit === 'zavod_bot_sorovlar' || kalit === 'zavod_joriy_smena' || kalit === 'zavod_rad_etilganlar' || kalit.startsWith('zavod_hisobot_')) {
       return NextResponse.json({ ok: true, eslatma: 'Bot ma\'lumoti' }, { status: 200 });
     }
     if (kalit === PIN_KALITI) {

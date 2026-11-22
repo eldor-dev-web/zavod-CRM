@@ -81,7 +81,9 @@ export function useRulonlar() {
   const [joriy, setJoriy] = useState<SmenaNuqtasi | null>(null);
   const joriyRef = useRef<SmenaNuqtasi | null>(null);
   const korinishRef = useRef<SmenaNuqtasi>({ sana: '', smena: '' });
-  korinishRef.current = { sana, smena: smenaTuri };
+  useEffect(() => {
+    korinishRef.current = { sana, smena: smenaTuri };
+  }, [sana, smenaTuri]);
 
   const joriyniQollash = useCallback((j: SmenaNuqtasi, korinishniHam: boolean) => {
     joriyRef.current = j;

@@ -4,7 +4,8 @@ import BraklarJadvali from '@/components/BraklarJadvali';
 import { brakHisobi, faolIshchilar, oyKunlariSoni, operatormi, oySozlamasi, KALIT, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, type Ishchi } from '@/lib/hisob';
 import { oqish } from '@/lib/mahalliyXotira';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
-import { toshkentOy } from '@/lib/sana';
+import { toshkentOy, toshkentSana } from '@/lib/sana';
+import { oyYopilganmi } from '@/lib/oyQulfi';
 
 export default function BraklarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
@@ -17,6 +18,9 @@ export default function BraklarSahifasi() {
   
   const [tanlanganOperatorId, setTanlanganOperatorId] = useState<any | null>(null);
   const [yangilanmoqda, setYangilanmoqda] = useState(false);
+  const [bugun, setBugun] = useState('');
+  // Oy yopilgan (6-sanadan keyin o'tgan oy): braklarni hech kim o'zgartira olmaydi
+  const yopiq = !!tanlanganOy && !!bugun && oyYopilganmi(tanlanganOy, bugun);
 
   const malumotlarniYuklash = (oy: string) => {
     const xodimlar = faolIshchilar(oyIshchilari(oy));
@@ -36,6 +40,7 @@ export default function BraklarSahifasi() {
   useEffect(() => {
     const hozirgiOy = toshkentOy();
     setTanlanganOy(hozirgiOy);
+    setBugun(toshkentSana());
 
     const saqlanganNarxlar = localStorage.getItem('zavod_brak_stavkalari');
     if (saqlanganNarxlar) {
@@ -67,6 +72,7 @@ export default function BraklarSahifasi() {
   const kunlarMassivi = Array.from({ length: tanlanganOy ? oyKunlariSoni(tanlanganOy) : 30 }, (_, i) => i + 1);
 
   const qiymatniOzgartirish = (ishchiId: any, kun: number, field: 'igna' | 'lux', val: any) => {
+    if (yopiq) return;
     const kalit = `${ishchiId}_${kun}`;
     const current = brakMaqomlari[kalit] || { igna: '', lux: '' };
     const numVal = val === '' ? '' : Number(String(val).replace(/\D/g, ''));
@@ -76,6 +82,7 @@ export default function BraklarSahifasi() {
   };
 
   const operatorIsminiOzgartirish = (ishchiId: any, yangiIsm: string) => {
+    if (yopiq) return;
     const updated = { ...operatorIsmlari, [ishchiId]: yangiIsm };
     setOperatorIsmlari(updated);
     localStorage.setItem(`zavod_brak_ismlar_${tanlanganOy}`, JSON.stringify(updated));
@@ -108,6 +115,12 @@ export default function BraklarSahifasi() {
   return (
     <div className="p-2.5 sm:p-6 max-w-[100vw] mx-auto font-sans bg-slate-50 min-h-screen">
       
+      {yopiq && (
+        <div className="mt-8 md:mt-0 mb-3 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-xs sm:text-sm font-black text-slate-700">
+          🔒 Oy yopilgan — bu oyning braklarini o&apos;zgartirib bo&apos;lmaydi
+        </div>
+      )}
+
       {/* 1. TEPADAGI PANEL (IKONKALAR BILAN) */}
       <div className="bg-white px-4 py-3 rounded-2xl shadow-2xs border border-slate-200/80 mb-4 flex justify-between items-center gap-2 mt-8 md:mt-0">
         <div className="flex items-center gap-2">

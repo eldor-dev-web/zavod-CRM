@@ -1,12 +1,12 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { avansYigindisi, pulFormat, type Ishchi } from '@/lib/hisob';
+import { avansJami, noaniqQatorlarSoni, pulFormat, type Ishchi } from '@/lib/hisob';
 import { toshkentSana } from '@/lib/sana';
 
 // AVANS DAFTARI (faqat admin) — sodda versiya.
 // Bitta Notes: ism yozilgan qatordagi summa shu ishchining avansi (oylik ham, bot ham shundan hisoblaydi).
 // "+ Xodim" -> oyna: Ism (yozganda ro'yxat chiqadi), Summa, Izoh (ixtiyoriy) -> Saqlash -> Notes'ga qator tushadi.
-export default function AvansDaftari({ tanlanganOy, ishchilar = [] }: { tanlanganOy: string; ishchilar?: Ishchi[] }) {
+export default function AvansDaftari({ tanlanganOy, ishchilar = [], yopiq = false }: { tanlanganOy: string; ishchilar?: Ishchi[]; yopiq?: boolean }) {
   const [matn, setMatn] = useState('');
   const [qulflangan, setQulflangan] = useState(true);
   const [bugunSana, setBugunSana] = useState('');
@@ -121,7 +121,8 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [] }: { tanlanga
     setOynaOchiq(false);
   };
 
-  const oyJami = avansYigindisi(matn);
+  const oyJami = avansJami(matn, ismlar);
+  const noaniqSoni = noaniqQatorlarSoni(matn, ismlar);
   const maydon =
     'w-full h-11 px-3 rounded-xl border border-slate-200 text-base sm:text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400';
 
@@ -137,6 +138,10 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [] }: { tanlanga
           {oyJami > 0 && <span className="ml-1 text-xs font-bold text-slate-400">· Oy jami: <span className="text-rose-600">{pulFormat(oyJami)}</span></span>}
         </div>
 
+        {yopiq ? (
+          <span className="h-9 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-black text-slate-600 inline-flex items-center">🔒 Oy yopilgan</span>
+        ) : (
+        <>
         <button
           type="button"
           onClick={oynaniOchish}
@@ -154,17 +159,25 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [] }: { tanlanga
         >
           {qulflangan ? '🔒 Tahrirlash' : '✓ Tayyor'}
         </button>
+        </>
+        )}
       </div>
+
+      {noaniqSoni > 0 && (
+        <p className="mx-3 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+          ⚠️ {noaniqSoni} ta qatorda bir nechta ishchi yozilgan — bu summalar hech kimga hisoblanmadi. Qatorda bitta ishchi qoldiring.
+        </p>
+      )}
 
       {/* NOTES */}
       <div className="p-2.5 sm:p-3">
         <textarea
           ref={textareaRef}
-          readOnly={qulflangan}
+          readOnly={qulflangan || yopiq}
           value={matn}
           onChange={(e) => matnniSaqlash(e.target.value)}
           onKeyDown={klaviaturaBosilganda}
-          onDoubleClick={() => qulflangan && setQulflangan(false)}
+          onDoubleClick={() => qulflangan && !yopiq && setQulflangan(false)}
           placeholder="Hali yozuv yo‘q. “+ Xodim” tugmasini bosing."
           className={`w-full overflow-hidden resize-none min-h-[150px] text-base sm:text-sm leading-7 font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal outline-none rounded-xl p-3 transition-colors ${
             qulflangan ? 'bg-slate-50/70 cursor-default' : 'bg-white ring-2 ring-indigo-500/25 focus:ring-indigo-500/50'

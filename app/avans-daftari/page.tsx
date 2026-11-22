@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import AvansDaftari from '@/components/AvansDaftari';
 import { faolIshchilar, type Ishchi } from '@/lib/hisob';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
-import { toshkentOy } from '@/lib/sana';
+import { toshkentOy, toshkentSana } from '@/lib/sana';
+import { oyYopilganmi } from '@/lib/oyQulfi';
 
 const OY_NOMLARI = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 const oyMatni = (oy: string) => (oy ? `${OY_NOMLARI[Number(oy.slice(5, 7)) - 1]} ${oy.slice(0, 4)}` : '');
@@ -18,10 +19,12 @@ function oyQoshish(oy: string, n: number) {
 export default function AvansDaftariSahifasi() {
   const [oy, setOy] = useState('');
   const [ishchilar, setIshchilar] = useState<Ishchi[]>([]);
+  const [bugun, setBugun] = useState('');
 
   // Oy faqat brauzerda olinadi (cacheComponents)
   useEffect(() => {
     setOy(toshkentOy());
+    setBugun(toshkentSana());
   }, []);
 
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function AvansDaftariSahifasi() {
         </div>
       </div>
 
-      <AvansDaftari key={oy} tanlanganOy={oy} ishchilar={ishchilar} />
+      <AvansDaftari key={oy} tanlanganOy={oy} ishchilar={ishchilar} yopiq={!!bugun && oyYopilganmi(oy, bugun)} />
     </div>
   );
 }

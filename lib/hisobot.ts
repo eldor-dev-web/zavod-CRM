@@ -29,7 +29,7 @@ const kgFormat = (n: number) => {
 };
 const sonFormat = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
-async function botTokeni(): Promise<string> {
+export async function botTokeni(): Promise<string> {
   if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN.trim();
   const y = await prisma.tizimXotira.findUnique({ where: { kalit: 'zavod_telegram_bot_token' } });
   const q = y?.qiymat;

@@ -91,7 +91,8 @@ async function oylikManbalari(oy: string): Promise<OylikManbalari> {
     davomat,
     ...oySozlama,
     brakJadvali,
-    eslatmalar: String(eslatmalar ?? '')
+    eslatmalar: String(eslatmalar ?? ''),
+    ismlar: (await oyIshchilari(oy)).map((i) => String(i.ism ?? '').trim()).filter(Boolean)
   };
 }
 
@@ -121,7 +122,7 @@ async function hisobotMatni(ishchi: Ishchi, oy: string) {
   if (o.avans > 0) {
     qatorlar.push(`• <b>Olingan avans:</b> -${pulFormat(o.avans)} UZS`);
     // Ostida: faqat izoh yozilgan avanslar (nima uchun olingani), sanasi va summasi bilan
-    avansQatorlari(manbalar.eslatmalar, String(ishchi.ism ?? ''))
+    avansQatorlari(manbalar.eslatmalar, String(ishchi.ism ?? ''), manbalar.ismlar)
       .filter((a) => a.izoh)
       .forEach((a) => {
         const [kun, oyRaqami] = a.sana.split('.').map(Number);

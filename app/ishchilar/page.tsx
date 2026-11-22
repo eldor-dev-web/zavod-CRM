@@ -5,7 +5,9 @@ import XodimModal from '@/components/XodimModal';
 import { ishchiOyligi, oyKunlariSoni, faolIshchilar, KALIT, oySozlamasi, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, STANDART_OPERATOR_QOSHIMCHA, type Ishchi, type SozlamaTarixi } from '@/lib/hisob';
 import { oqish } from '@/lib/mahalliyXotira';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
-import { toshkentOy } from '@/lib/sana';
+import { toshkentOy, toshkentSana } from '@/lib/sana';
+import { oyYopilganmi } from '@/lib/oyQulfi';
+import { DAVOMAT_KALITI, davomatKatakYozish, davomatKutayotganlar } from '@/lib/sinxron';
 
 const Icons = {
   Users: () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>,
@@ -24,9 +26,13 @@ export default function IshchilarSahifasi() {
   const [modalOchiq, setModalOchiq] = useState(false);
   const [tanlanganXodim, setTanlanganXodim] = useState<any | null>(null);
   const [isModified, setIsModified] = useState(false);
+  const [bugun, setBugun] = useState('');
+  // Oy yopilgan (6-sanadan keyin o'tgan oy): davomat va ishchilar ro'yxatini hech kim o'zgartira olmaydi
+  const yopiq = !!tanlanganOy && !!bugun && oyYopilganmi(tanlanganOy, bugun);
 
   useEffect(() => {
     setTanlanganOy(toshkentOy());
+    setBugun(toshkentSana());
 
     setSozlamaTarixi(oqish(KALIT.sozlamaTarixi, {}));
     const saqlanganQoshimcha = localStorage.getItem('zavod_operator_qoshimcha');
@@ -45,6 +51,28 @@ export default function IshchilarSahifasi() {
     }
   }, []);
 
+  // Boshqa qurilmada qo'yilgan davomat belgilarini har 15 soniyada olib kelamiz
+  // (bu qurilmadagi hali yuborilmagan kataklar ustidan yozilmaydi)
+  useEffect(() => {
+    const yangilash = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const res = await fetch(`/api/davomat?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const bazadagi = (await res.json())?.davomat;
+        if (!bazadagi || typeof bazadagi !== 'object') return;
+        const birlashgan = { ...bazadagi, ...davomatKutayotganlar() };
+        const matn = JSON.stringify(birlashgan);
+        if (localStorage.getItem(DAVOMAT_KALITI) !== matn) {
+          Storage.prototype.setItem.call(window.localStorage, DAVOMAT_KALITI, matn);
+          setDavomat(birlashgan);
+        }
+      } catch {}
+    };
+    const t = setInterval(yangilash, 15 * 1000);
+    return () => clearInterval(t);
+  }, []);
+
   useEffect(() => {
     if (!tanlanganOy) return;
     setIsModified(false);
@@ -58,6 +86,7 @@ export default function IshchilarSahifasi() {
   }, [ishchilar, tanlanganOy, isModified]);
 
   const xodimniSaqlash = (xodimData: { id?: Ishchi['id']; ism: string; lavozimi: string; telefon: string }) => {
+    if (yopiq) return;
     setIsModified(true);
     if (xodimData.id) {
       setIshchilar((prev) =>
@@ -75,33 +104,32 @@ export default function IshchilarSahifasi() {
   };
 
   const xodimniOchirish = (id: Ishchi['id'], ism: string) => {
+    if (yopiq) return;
     if (!window.confirm(`Rostdan ham "${ism}"ni ushbu oydan oʻchirmoqchimisiz?`)) return;
     setIsModified(true);
     setIshchilar((prev) => prev.filter((item) => item.id !== id));
   };
 
+  // Davomat: faqat o'zgargan katak bazaga yuboriladi (ikki kishi bir vaqtda belgilasa ham ikkalasi saqlanadi)
   const statusniOzgartirish = (ishchiId: Ishchi['id'], kun: number, maxsusStatus?: string) => {
-    setIsModified(true);
+    if (yopiq) return;
     const kalit = `${ishchiId}_${tanlanganOy}_${kun}`;
     const current = davomat[kalit] || { status: '', moshina: '' };
 
     const yangiStatus = maxsusStatus !== undefined ? maxsusStatus : current.status === '+' ? '' : '+';
 
-    const updated = { ...davomat, [kalit]: { ...current, status: yangiStatus } };
-    setDavomat(updated);
-    localStorage.setItem('zavod_xodim_davomati', JSON.stringify(updated));
+    const katak = { ...current, status: yangiStatus };
+    setDavomat((d) => ({ ...d, [kalit]: katak }));
+    davomatKatakYozish(kalit, katak);
   };
 
   const moshinaSoniniOzgartirish = (ishchiId: Ishchi['id'], kun: number, val: string) => {
-    setIsModified(true);
+    if (yopiq) return;
     const kalit = `${ishchiId}_${tanlanganOy}_${kun}`;
     const current = davomat[kalit] || { status: '', moshina: '' };
-    const updated = {
-      ...davomat,
-      [kalit]: { ...current, moshina: val.trim() === '' ? '' : Number(val.replace(/\D/g, '')) }
-    };
-    setDavomat(updated);
-    localStorage.setItem('zavod_xodim_davomati', JSON.stringify(updated));
+    const katak = { ...current, moshina: val.trim() === '' ? '' : Number(val.replace(/\D/g, '')) };
+    setDavomat((d) => ({ ...d, [kalit]: katak }));
+    davomatKatakYozish(kalit, katak);
   };
 
   const kunlarMassivi = Array.from({ length: tanlanganOy ? oyKunlariSoni(tanlanganOy) : 30 }, (_, i) => i + 1);
@@ -146,17 +174,26 @@ export default function IshchilarSahifasi() {
         </div>
       </div>
 
+      {yopiq && (
+        <div className="mb-4 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
+          🔒 Oy yopilgan — bu oyning davomati va ishchilar ro&apos;yxatini o&apos;zgartirib bo&apos;lmaydi
+        </div>
+      )}
+
       <div className="mb-8">
         <IshchilarJadvali
+          yopiq={yopiq}
           ishchilar={ishchilar}
           davomat={davomat}
           tanlanganOy={tanlanganOy}
           kunlarMassivi={kunlarMassivi}
           xodimniTahrirlash={(xodim: any) => {
+            if (yopiq) return;
             setTanlanganXodim(xodim);
             setModalOchiq(true);
           }}
           yangiXodimQoshish={() => {
+            if (yopiq) return;
             setTanlanganXodim(null);
             setModalOchiq(true);
           }}

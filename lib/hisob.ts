@@ -197,12 +197,59 @@ function qatordagiSummalar(qator: string): number {
 }
 
 // ism berilsa faqat o'sha xodimning qatorlari, berilmasa butun bloknot yig'indisi
-export function avansYigindisi(eslatmalar: string, ism?: string): number {
+// Qator kimga tegishli. Bir ism boshqa topilgan uzunroq ism ichida bo'lsa ("Ali" < "Ali Valiyev"),
+// qator faqat uzunroq ismga tegishli. Natijada 2+ xil ishchi qolsa — qator noaniq (hech kimga hisoblanmaydi).
+export function qatorEgalari(qator: string, ismlar: string[]): string[] {
+  const sanasiz = qator.replace(/\[\d{1,2}\.\d{1,2}\]/g, '');
+  const oraliqlar: { ism: string; bosh: number; oxir: number }[] = [];
+  Array.from(new Set(ismlar.map((i) => String(i ?? '').trim()).filter(Boolean))).forEach((ism) => {
+    const re = new RegExp(`(?<![${SOZ_BELGILARI}])${regexXavfsiz(ism)}(?![${SOZ_BELGILARI}])`, 'giu');
+    for (const m of sanasiz.matchAll(re)) oraliqlar.push({ ism, bosh: m.index ?? 0, oxir: (m.index ?? 0) + m[0].length });
+  });
+  const qolgan = oraliqlar.filter(
+    (a) => !oraliqlar.some((b) => b !== a && b.oxir - b.bosh > a.oxir - a.bosh && b.bosh <= a.bosh && b.oxir >= a.oxir)
+  );
+  const natija: string[] = [];
+  qolgan.forEach((o) => {
+    if (!natija.some((n) => n.toLowerCase() === o.ism.toLowerCase())) natija.push(o.ism);
+  });
+  return natija;
+}
+
+const birXilIsm = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+// Qator shu ishchiga tegishlimi. ismlar (barcha ishchilar) berilsa — aniq qoida (yuqoridagi);
+// berilmasa — eski qoida (ism qatorda bormi).
+function qatorShuIshchigami(qator: string, ism: string, ismlar?: string[]): boolean {
+  if (ismlar && ismlar.length > 0) {
+    const e = qatorEgalari(qator, ismlar.some((i) => birXilIsm(i, ism)) ? ismlar : [...ismlar, ism]);
+    return e.length === 1 && birXilIsm(e[0], ism);
+  }
+  return ismQatordaBormi(qator.replace(/\[\d{1,2}\.\d{1,2}\]/g, ''), ism);
+}
+
+// ism berilsa faqat o'sha xodimning qatorlari, berilmasa butun bloknot yig'indisi
+export function avansYigindisi(eslatmalar: string, ism?: string, ismlar?: string[]): number {
   if (!eslatmalar?.trim()) return 0;
   return eslatmalar
     .split('\n')
-    .filter((qator) => !ism || ismQatordaBormi(qator.replace(/\[\d{1,2}\.\d{1,2}\]/g, ''), ism))
+    .filter((qator) => !ism || qatorShuIshchigami(qator, ism, ismlar))
     .reduce((jami, qator) => jami + qatordagiSummalar(qator), 0);
+}
+
+// Oy jami: faqat aniq bitta ishchiga tegishli qatorlar (noaniq qatorlar hech kimga hisoblanmaydi)
+export function avansJami(eslatmalar: string, ismlar: string[]): number {
+  if (!eslatmalar?.trim()) return 0;
+  return eslatmalar
+    .split('\n')
+    .filter((q) => qatorEgalari(q, ismlar).length === 1)
+    .reduce((j, q) => j + qatordagiSummalar(q), 0);
+}
+
+// Summasi bor, lekin bir nechta xil ishchi yozilgan qatorlar soni (ogohlantirish uchun)
+export function noaniqQatorlarSoni(eslatmalar: string, ismlar: string[]): number {
+  if (!eslatmalar?.trim()) return 0;
+  return eslatmalar.split('\n').filter((q) => qatordagiSummalar(q) > 0 && qatorEgalari(q, ismlar).length > 1).length;
 }
 
 // --- AVANS DAFTARI: qatorlarni ajratish (Avans daftari sahifasi va Telegram bot uchun) ---
@@ -227,11 +274,11 @@ export function izohAjratish(qator: string, ism?: string): string {
 }
 
 // Ishchining summasi bor qatorlari: sana (kk.oo), summa va izoh
-export function avansQatorlari(eslatmalar: string, ism: string): AvansQatori[] {
+export function avansQatorlari(eslatmalar: string, ism: string, ismlar?: string[]): AvansQatori[] {
   if (!eslatmalar?.trim() || !ism?.trim()) return [];
   return eslatmalar
     .split('\n')
-    .filter((q) => ismQatordaBormi(q.replace(/\[\d{1,2}\.\d{1,2}\]/g, ''), ism))
+    .filter((q) => qatorShuIshchigami(q, ism, ismlar))
     .map((q) => ({
       sana: (q.match(/\[(\d{1,2}\.\d{1,2})\]/) || [])[1] || '',
       summa: qatordagiSummalar(q),
@@ -330,6 +377,9 @@ export type OylikManbalari = {
   brakJadvali: BrakJadvali;
   brakStavkalari: BrakStavkalari;
   eslatmalar: string;
+  // Shu oyning barcha ishchilari ismlari: avans qatori kimga tegishli ekanini aniq topish uchun
+  // ("Ali Valiyev — 200,000" faqat Ali Valiyevga, "Ali"ga emas)
+  ismlar?: string[];
 };
 
 export type OylikNatija = {
@@ -357,7 +407,7 @@ export function ishchiOyligi(ishchi: Ishchi, oy: string, m: OylikManbalari): Oyl
   const qoshimcha = operator ? jamiMoshina * son(m.operatorQoshimcha) : 0;
   const hisoblangan = asosiy + qoshimcha;
   const brak = brakHisobi(ishchi.id, oy, m.brakJadvali, m.brakStavkalari);
-  const avans = avansYigindisi(m.eslatmalar, String(ishchi.ism ?? ''));
+  const avans = avansYigindisi(m.eslatmalar, String(ishchi.ism ?? ''), m.ismlar);
 
   return {
     lavozim,

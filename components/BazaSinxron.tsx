@@ -8,8 +8,12 @@ import {
   kechiktiribYuborish,
   kutayotganlarniDarholYuborish,
   navbatniYuborish,
+  radEtilganlar,
+  radEtilganlarniKorildi,
   sinxronlanadimi,
+  yuboriladimi,
   yuborilmaganmi,
+  type RadEtilgan,
   type SinxronHolati
 } from '@/lib/sinxron';
 
@@ -20,6 +24,15 @@ export default function BazaSinxron() {
   const [holat, setHolat] = useState<SinxronHolati>({ kutmoqda: 0, yuborilmoqda: false, ulanmagan: false });
   const [saqlandiKorsat, setSaqlandiKorsat] = useState(false);
   const oldingiKutmoqda = useRef(0);
+
+  // Arxivga kechikib tushib, qabul qilinmagan smena ma'lumotlari (qizil ogohlantirish)
+  const [radlar, setRadlar] = useState<RadEtilgan[]>([]);
+  useEffect(() => {
+    const yangila = () => setRadlar(radEtilganlar().filter((r) => !r.korildi));
+    yangila();
+    window.addEventListener('zavod_rad_etildi', yangila);
+    return () => window.removeEventListener('zavod_rad_etildi', yangila);
+  }, []);
 
   // Holat belgisini yangilash
   useEffect(() => {
@@ -45,7 +58,7 @@ export default function BazaSinxron() {
     const aslSetItem = window.localStorage.setItem;
     window.localStorage.setItem = function (kalit: string, qiymat: string) {
       aslSetItem.apply(this, [kalit, qiymat]);
-      if (sinxronlanadimi(kalit)) kechiktiribYuborish(kalit);
+      if (yuboriladimi(kalit)) kechiktiribYuborish(kalit);
     };
 
     // 2. Ishga tushganda: avval kutib turgan o'zgarishlarni yuboramiz, keyin bazadan yangilarini olamiz
@@ -106,6 +119,25 @@ export default function BazaSinxron() {
   }, [loginSahifasida]);
 
   if (loginSahifasida) return null;
+
+  if (radlar.length > 0) {
+    const nomlar = Array.from(
+      new Set(radlar.map((r) => `${r.sana.split('-').reverse().slice(0, 2).join('.')} ${String(r.smena).toUpperCase().includes('NOCH') ? 'NOCH' : 'DEN'}`))
+    ).join(', ');
+    return (
+      <div role="alert" className="fixed bottom-4 right-4 left-4 sm:left-auto z-50 sm:max-w-md rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 shadow-lg print:hidden">
+        <p className="text-sm font-black text-rose-800">⚠️ {nomlar} smenasiga kiritilgan o&apos;zgarishlar saqlanmadi</p>
+        <p className="mt-1 text-xs font-semibold text-rose-700">Smena arxivga o&apos;tib bo&apos;lgan. Adminga (Telegram kanalga) xabar yuborildi, ma&apos;lumot shu qurilmada saqlab qo&apos;yildi.</p>
+        <button
+          type="button"
+          onClick={radEtilganlarniKorildi}
+          className="mt-2 h-9 px-4 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-black"
+        >
+          Tushunarli
+        </button>
+      </div>
+    );
+  }
 
   // Holat belgisi: faqat kerak bo'lganda ko'rinadi
   if (holat.kutmoqda > 0) {

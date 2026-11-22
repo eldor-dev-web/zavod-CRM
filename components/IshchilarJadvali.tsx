@@ -9,7 +9,8 @@ export default function IshchilarJadvali({
   yangiXodimQoshish,
   statusniOzgartirish,
   moshinaSoniniOzgartirish,
-  oylikniHisoblash
+  oylikniHisoblash,
+  yopiq = false
 }: any) {
   const [fokusKun, setFokusKun] = useState<number | null>(null);
 
@@ -46,7 +47,7 @@ export default function IshchilarJadvali({
                 return (
                   <th
                     key={kun}
-                    onClick={() => setFokusKun(fokusKun === kun ? null : kun)}
+                    onClick={() => !yopiq && setFokusKun(fokusKun === kun ? null : kun)}
                     className={`p-1.5 text-center border-r border-slate-300 text-[11px] font-black cursor-pointer select-none transition-colors ${
                       isActive ? 'bg-indigo-500 text-white border-indigo-600' : 'text-slate-700 hover:bg-slate-300'
                     }`}
@@ -223,13 +224,13 @@ export default function IshchilarJadvali({
       </div>
 
       <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-        <button
+        {!yopiq && <button
           type="button"
           onClick={yangiXodimQoshish}
           className="px-4 py-2.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
         >
           <span className="text-base leading-none">+</span> Yangi xodim qoʻshish
-        </button>
+        </button>}
       </div>
     </div>
   );
