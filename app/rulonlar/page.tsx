@@ -3,13 +3,14 @@ import React, { useState, useEffect } from 'react';
 import ApparatCard from '@/components/ApparatCard';
 import SmenaFormasi from '@/components/SmenaFormasi'; 
 import { useRulonlar } from '@/hooks/useRulonlar';
-import { oldingiSmena, smenaQisqa, smenaQulflanganmi } from '@/lib/smena';
+import { almashuvEslatmasi, oldingiSmena, smenaQisqa, smenaQulflanganmi, tungimi } from '@/lib/smena';
 import { moshinaRaqami } from '@/lib/moshina';
 
 export default function RulonlarSahifasi() {
   const {
-    moshinalar, sana, setSana, smenaTuri, setSmenaTuri, kontrolchi, setKontrolchi, master, setMaster,
-    moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, oldingiSmenadanKochirish
+    moshinalar, sana, setSana, smenaTuri, kontrolchi, setKontrolchi, master, setMaster,
+    moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, oldingiSmenadanKochirish,
+    smenaTanlash, smenagaOtish
   } = useRulonlar();
 
   // "Oldingi smenadan ko'chirish" holati
@@ -37,6 +38,29 @@ export default function RulonlarSahifasi() {
       setRol(JSON.parse(saqlanganUser).rol);
     }
   }, []);
+
+  // UNUTILGAN ALMASHUV ESLATMASI: soat 08:30 / 20:30 dan keyin ekranda hali oldingi smena tursa.
+  // Hech narsa avtomatik almashmaydi — faqat eslatadi. Har daqiqada tekshiriladi (vaqt faqat brauzerda olinadi).
+  const [eslatma, setEslatma] = useState<{ sana: string; smena: string } | null>(null);
+  const [yopilganEslatma, setYopilganEslatma] = useState('');
+  useEffect(() => {
+    try {
+      setYopilganEslatma(localStorage.getItem('_zavod_eslatma_yopilgan') || '');
+    } catch {}
+  }, []);
+  useEffect(() => {
+    const tekshir = () => setEslatma(almashuvEslatmasi(sana, smenaTuri));
+    tekshir();
+    const t = setInterval(tekshir, 60 * 1000);
+    return () => clearInterval(t);
+  }, [sana, smenaTuri]);
+  const eslatmaKaliti = eslatma ? `${eslatma.sana}_${smenaQisqa(eslatma.smena)}` : '';
+  const eslatmaniYopish = () => {
+    setYopilganEslatma(eslatmaKaliti);
+    try {
+      localStorage.setItem('_zavod_eslatma_yopilgan', eslatmaKaliti);
+    } catch {}
+  };
 
   // Eski (arxivga o'tgan) smenani faqat admin o'zgartiradi, boshqalar faqat ko'radi
   const faqatKorish = !!sana && smenaQulflanganmi(sana) && rol !== 'admin';
@@ -78,13 +102,38 @@ export default function RulonlarSahifasi() {
         )}
       </div>
 
+      {/* ⏰ UNUTILGAN ALMASHUV ESLATMASI (faqat smenani almashtira oladiganlarga) */}
+      {eslatma && eslatmaKaliti !== yopilganEslatma && (rol === 'admin' || rol === 'master') && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
+          <span className="text-sm sm:text-base font-black text-amber-900 flex-1 min-w-[200px]">
+            ⏰ Hozir {eslatma.sana.split('-').reverse().slice(0, 2).join('.')} {tungimi(eslatma.smena) ? '🌙 NOCH' : '☀️ DEN'} smenasi
+          </span>
+          <button
+            type="button"
+            onClick={() => smenagaOtish(eslatma.sana, eslatma.smena)}
+            className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-sm font-black"
+          >
+            O&apos;tish
+          </button>
+          <button
+            type="button"
+            onClick={eslatmaniYopish}
+            className="h-10 w-10 rounded-xl bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 font-black"
+            aria-label="Yopish"
+            title="Keyingi smenagacha yashirish"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 🚀 2. SMENA FORMASI (Sana, Smena, Master, Kantrolchi shu yerda aylanadi) */}
       {/* Sana va smenani tanlash: admin va master uchun doim ochiq (eski smenalarni ko'rish uchun ham) */}
       <div className={`bg-white rounded-2xl shadow-sm border-2 mb-8 overflow-hidden transition-opacity ${rol === 'admin' || rol === 'master' ? 'border-slate-200' : 'border-slate-100 opacity-70 pointer-events-none'}`}>
         {/* Master va Admindan boshqa odam kira olmasligi uchun 'pointer-events-none' berildi */}
         <SmenaFormasi 
           sana={sana} setSana={setSana} 
-          smenaTuri={smenaTuri} setSmenaTuri={setSmenaTuri} 
+          smenaTuri={smenaTuri} setSmenaTuri={smenaTanlash} 
           kontrolchi={kontrolchi} setKontrolchi={setKontrolchi} 
           master={master} setMaster={setMaster} 
         />

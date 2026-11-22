@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { faolIshchilar, KALIT } from '@/lib/hisob';
 import { joriyRol, oyIshchilari } from '@/lib/mahalliyXotira';
 import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
-import { DEN, NOCH, oldingiSmena, smenaQisqa, smenaQulflanganmi } from '@/lib/smena';
+import { DEN, NOCH, keyingiSmena, oldingiSmena, smenaQisqa, smenaQulflanganmi, tungimi } from '@/lib/smena';
 import { hisobotIdsi, navbatdami, smenaIdsi, smenaMahalliyKaliti, yuborishYokiNavbat } from '@/lib/sinxron';
 import { NUQSON_TURLARI } from '@/lib/arxiv';
 import { moshinaNomi, moshinaRaqami } from '@/lib/moshina';
@@ -359,6 +359,21 @@ export function useRulonlar() {
     }
   };
 
+  // Smena tugmalari (aqlli): DEN -> NOCH sana o'zgarmaydi; NOCH -> DEN bo'lsa sana o'zi ertangi kunga o'tadi.
+  // Eski kunni ko'rish uchun sana maydoni qo'lda o'zgartiriladi.
+  const smenaTanlash = (qiymat: string) => {
+    if (!smenaTuri || tungimi(qiymat) === tungimi(smenaTuri)) return;
+    const k = keyingiSmena(sana, smenaTuri);
+    if (tungimi(smenaTuri)) setSana(k.sana); // NOCH -> ertangi DEN
+    setSmenaTuri(k.smena);
+  };
+
+  // Eslatmadagi "O'tish" tugmasi uchun: aniq smenaga o'tish
+  const smenagaOtish = (yangiSana: string, yangiSmena: string) => {
+    setSana(yangiSana);
+    setSmenaTuri(yangiSmena);
+  };
+
   // OLDINGI SMENADAN MOSHINALARNI KO'CHIRISH
   // Raqam, talimoti, brend, IP va lot ko'chiriladi. Operator bo'sh qoladi, rulonlar yangidan boshlanadi.
   // Bu smenada allaqachon bor moshina raqamlari qayta qo'shilmaydi.
@@ -420,6 +435,7 @@ export function useRulonlar() {
   return {
     moshinalar, sana, setSana, smenaTuri, setSmenaTuri, kontrolchi, setKontrolchi, master, setMaster,
     moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, yangiSmenagaOtish, oldingiSmenadanKochirish,
+    smenaTanlash, smenagaOtish,
     isLoaded 
   };
 }
