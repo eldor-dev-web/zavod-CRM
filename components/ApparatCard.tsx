@@ -358,7 +358,7 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
         <thead>
           <tr className="bg-sirt-2 border-y border-chiziq text-[11px] md:text-xs font-semibold text-matn-2">
             <th className="py-2 font-semibold">№</th>
-            <th className="py-2 font-semibold text-yaxshi">KG</th>
+            <th className="py-2 font-semibold text-yaxshi border-l border-chiziq">KG</th>
             {nuqsonTurlari.map((n) => (
               <th key={n} className="py-2 font-semibold truncate px-0.5">
                 <span className="md:hidden">{QISQA[n] || n}</span>
@@ -373,7 +373,7 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
             return (
               <tr key={`r-${idx}`} className={`border-b border-chiziq ${yangi ? 'bg-yaxshi-och' : ''}`}>
                 <td className="text-xs md:text-sm font-medium text-matn-3 tabular-nums">{r.id || idx + 1}</td>
-                <td className="p-0">
+                <td className="p-0 border-l border-chiziq">
                   <input
                     type="text"
                     inputMode="decimal"
