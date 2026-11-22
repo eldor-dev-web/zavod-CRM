@@ -3,15 +3,28 @@ import React, { useState, useEffect } from 'react';
 import ApparatCard from '@/components/ApparatCard';
 import SmenaFormasi from '@/components/SmenaFormasi'; 
 import { useRulonlar } from '@/hooks/useRulonlar';
-import { almashuvEslatmasi, oldingiSmena, smenaQisqa, smenaQulflanganmi, tungimi } from '@/lib/smena';
+import { almashuvEslatmasi, oldingiSmena, smenaQisqa, tungimi } from '@/lib/smena';
 import { moshinaRaqami } from '@/lib/moshina';
 
 export default function RulonlarSahifasi() {
   const {
-    moshinalar, sana, setSana, smenaTuri, kontrolchi, setKontrolchi, master, setMaster,
+    moshinalar, sana, smenaTuri, kontrolchi, setKontrolchi, master, setMaster,
     moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, oldingiSmenadanKochirish,
-    smenaTanlash, smenagaOtish
+    joriy, rejim, smenaTanlash, smenagaOtish, tugaganniOchish, joriygaQaytish
   } = useRulonlar();
+
+  // Smena almashtirishda xato bo'lsa (internet yo'q, boshqa qurilma allaqachon almashtirgan)
+  const [smenaXato, setSmenaXato] = useState('');
+  const smenaAlmashuvi = async (amal: () => Promise<string | null>) => {
+    setSmenaXato('');
+    const xato = await amal();
+    if (xato) {
+      setSmenaXato(xato);
+      setTimeout(() => setSmenaXato(''), 7000);
+    }
+  };
+  const qisqaNom = (s: { sana: string; smena: string }) =>
+    `${s.sana.split('-').reverse().slice(0, 2).join('.')} ${tungimi(s.smena) ? '🌙 NOCH' : '☀️ DEN'}`;
 
   // "Oldingi smenadan ko'chirish" holati
   const [kochirilmoqda, setKochirilmoqda] = useState(false);
@@ -48,12 +61,14 @@ export default function RulonlarSahifasi() {
       setYopilganEslatma(localStorage.getItem('_zavod_eslatma_yopilgan') || '');
     } catch {}
   }, []);
+  // Eslatma joriy smenaga (bazadagi) qarab hisoblanadi
   useEffect(() => {
-    const tekshir = () => setEslatma(almashuvEslatmasi(sana, smenaTuri));
+    if (!joriy) return;
+    const tekshir = () => setEslatma(almashuvEslatmasi(joriy.sana, joriy.smena));
     tekshir();
     const t = setInterval(tekshir, 60 * 1000);
     return () => clearInterval(t);
-  }, [sana, smenaTuri]);
+  }, [joriy]);
   const eslatmaKaliti = eslatma ? `${eslatma.sana}_${smenaQisqa(eslatma.smena)}` : '';
   const eslatmaniYopish = () => {
     setYopilganEslatma(eslatmaKaliti);
@@ -62,8 +77,9 @@ export default function RulonlarSahifasi() {
     } catch {}
   };
 
-  // Eski (arxivga o'tgan) smenani faqat admin o'zgartiradi, boshqalar faqat ko'radi
-  const faqatKorish = !!sana && smenaQulflanganmi(sana) && rol !== 'admin';
+  // Arxiv smenasini hech kim o'zgartira olmaydi (server ham tekshiradi). Odatda Rulonlar'da arxiv ochilmaydi.
+  const faqatKorish = rejim === 'arxiv';
+  const smenaBoshqaruvchi = rol === 'admin' || rol === 'master';
 
   // Bir smenada bir moshina raqami ikki marta yozilsa, ikkalasi qizil bo'ladi
   const raqamlarSoni: Record<number, number> = {};
@@ -89,7 +105,7 @@ export default function RulonlarSahifasi() {
         
         {faqatKorish ? (
           <div className="bg-amber-50 text-amber-800 text-[10px] sm:text-xs font-black px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm border border-amber-200">
-            🔒 ARXIVLANGAN SMENA — FAQAT KO&apos;RISH
+            🔒 ARXIV — O&apos;ZGARTIRIB BO&apos;LMAYDI
           </div>
         ) : (
         <div className="bg-emerald-100 text-emerald-800 text-[10px] sm:text-xs font-black px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm border border-emerald-200">
@@ -103,14 +119,14 @@ export default function RulonlarSahifasi() {
       </div>
 
       {/* ⏰ UNUTILGAN ALMASHUV ESLATMASI (faqat smenani almashtira oladiganlarga) */}
-      {eslatma && eslatmaKaliti !== yopilganEslatma && (rol === 'admin' || rol === 'master') && (
+      {eslatma && eslatmaKaliti !== yopilganEslatma && smenaBoshqaruvchi && rejim === 'joriy' && (
         <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm">
           <span className="text-sm sm:text-base font-black text-amber-900 flex-1 min-w-[200px]">
             ⏰ Hozir {eslatma.sana.split('-').reverse().slice(0, 2).join('.')} {tungimi(eslatma.smena) ? '🌙 NOCH' : '☀️ DEN'} smenasi
           </span>
           <button
             type="button"
-            onClick={() => smenagaOtish(eslatma.sana, eslatma.smena)}
+            onClick={() => smenaAlmashuvi(() => smenagaOtish(eslatma))}
             className="h-10 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-sm font-black"
           >
             O&apos;tish
@@ -127,16 +143,50 @@ export default function RulonlarSahifasi() {
         </div>
       )}
 
-      {/* 🚀 2. SMENA FORMASI (Sana, Smena, Master, Kantrolchi shu yerda aylanadi) */}
-      {/* Sana va smenani tanlash: admin va master uchun doim ochiq (eski smenalarni ko'rish uchun ham) */}
-      <div className={`bg-white rounded-2xl shadow-sm border-2 mb-8 overflow-hidden transition-opacity ${rol === 'admin' || rol === 'master' ? 'border-slate-200' : 'border-slate-100 opacity-70 pointer-events-none'}`}>
-        {/* Master va Admindan boshqa odam kira olmasligi uchun 'pointer-events-none' berildi */}
-        <SmenaFormasi 
-          sana={sana} setSana={setSana} 
-          smenaTuri={smenaTuri} setSmenaTuri={smenaTanlash} 
-          kontrolchi={kontrolchi} setKontrolchi={setKontrolchi} 
-          master={master} setMaster={setMaster} 
+      {/* ✏️ TUGAGAN SMENA (faqat shu masterning ekranida; kontrolchilar joriy smenada qoladi) */}
+      {rejim !== 'joriy' && joriy && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 shadow-sm">
+          <span className="text-sm sm:text-base font-black text-indigo-900 flex-1 min-w-[200px]">
+            {rejim === 'tugagan' ? '✏️ Tugagan smena' : '🗂 Arxiv smenasi'}: {qisqaNom({ sana, smena: smenaTuri })}
+          </span>
+          <button
+            type="button"
+            onClick={joriygaQaytish}
+            className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-black"
+          >
+            Joriy smenaga qaytish →
+          </button>
+        </div>
+      )}
+
+      {smenaXato && (
+        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs sm:text-sm font-bold text-rose-700">⚠️ {smenaXato}</div>
+      )}
+
+      {/* 🚀 2. SMENA FORMASI: sana joriy smenadan keladi, smena faqat aqlli tugmalar bilan almashadi */}
+      <div className={`bg-white rounded-2xl shadow-sm border-2 mb-8 overflow-hidden transition-opacity ${smenaBoshqaruvchi ? 'border-slate-200' : 'border-slate-100 opacity-70 pointer-events-none'}`}>
+        <SmenaFormasi
+          sana={sana}
+          smenaTuri={smenaTuri}
+          smenaTanlash={(q) => smenaAlmashuvi(() => smenaTanlash(q))}
+          tugmalarOchiq={smenaBoshqaruvchi && rejim === 'joriy'}
+          kontrolchi={kontrolchi}
+          setKontrolchi={setKontrolchi}
+          master={master}
+          setMaster={setMaster}
         />
+        {/* Bir qadam orqaga: faqat master va admin, faqat tugagan smenaga */}
+        {smenaBoshqaruvchi && rejim === 'joriy' && joriy && (
+          <div className="px-4 pb-4 -mt-2">
+            <button
+              type="button"
+              onClick={tugaganniOchish}
+              className="h-9 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-600"
+            >
+              ← Tugagan smena ({qisqaNom(oldingiSmena(joriy.sana, joriy.smena))})
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KO'CHIRISH NATIJASI */}

@@ -1,10 +1,10 @@
 // ============================================================
 // SMENALAR
-// Smenani master o'zi almashtiradi: DEN tugasa tepadan NOCH ni tanlaydi.
-// Tizim soatga qarab hech narsani o'zi o'zgartirmaydi.
+// Smenani master o'zi almashtiradi (aqlli tugmalar). Tizim soatga qarab hech narsani o'zi o'zgartirmaydi,
+// faqat almashtirish unutilganda eslatadi.
 // ============================================================
 
-import { sanagaKunQoshish, toshkentSana, toshkentVaqtMatni } from '@/lib/sana';
+import { sanagaKunQoshish, toshkentVaqtMatni } from '@/lib/sana';
 
 export const DEN = 'DEN (Kunduzgi)';
 export const NOCH = 'NOCH (Tungi)';
@@ -38,21 +38,32 @@ export function hozirgiSmena(vaqt: Date = new Date()): { sana: string; smena: st
   return { sana: sanagaKunQoshish(bugun, -1), smena: NOCH, otganDaqiqa: daqiqa + 24 * 60 - NOCH_BOSHLANISHI };
 }
 
-// Master almashtirishni unutganmi: ekranda hozirgi smenadan BITTA oldingisi turibdi va 1 soat o'tgan.
-// Eski kunni ataylab ko'rayotgan bo'lsa (2 smena va undan oldin) yoki kelajak tanlangan bo'lsa — eslatmaydi.
-export function almashuvEslatmasi(sana: string, smena: string, vaqt: Date = new Date()): { sana: string; smena: string } | null {
-  if (!sana || !smena) return null;
-  const hozir = hozirgiSmena(vaqt);
-  if (hozir.otganDaqiqa < ESLATMA_KECHIKISHI) return null;
-  const oldingi = oldingiSmena(hozir.sana, hozir.smena);
-  return oldingi.sana === sana && tungimi(oldingi.smena) === tungimi(smena) ? { sana: hozir.sana, smena: hozir.smena } : null;
+// --- JORIY SMENA (bazada: zavod_joriy_smena) ---
+// Master oxirgi o'tgan smena. Hamma qurilmalar Rulonlar'ni shu smenada ochadi.
+// Tahrirlash mumkin bo'lgan smenalar faqat ikkita: joriy va tugagan (bitta oldingisi). Qolgani — arxiv, hech kim o'zgartira olmaydi.
+export const JORIY_SMENA_KALITI = 'zavod_joriy_smena';
+export type SmenaNuqtasi = { sana: string; smena: string };
+
+export const birXilSmena = (a: SmenaNuqtasi, b: SmenaNuqtasi) => a.sana === b.sana && tungimi(a.smena) === tungimi(b.smena);
+// Solishtirish uchun tartib: "2026-11-23|0" (DEN) < "2026-11-23|1" (NOCH) < "2026-11-24|0"
+export const smenaTartibi = (s: SmenaNuqtasi) => `${s.sana}|${tungimi(s.smena) ? 1 : 0}`;
+export const smenaNomi = (smena: string) => (tungimi(smena) ? NOCH : DEN);
+
+export function tahrirlashMumkinmi(sana: string, smena: string, joriy: SmenaNuqtasi | null | undefined): boolean {
+  if (!joriy || !sana || !smena) return false;
+  const korilayotgan = { sana, smena };
+  return birXilSmena(korilayotgan, joriy) || birXilSmena(korilayotgan, oldingiSmena(joriy.sana, joriy.smena));
 }
 
-// Arxiv qulfi: bugungi va kechagi smenalar ochiq (tungi smena yarim tundan o'tadi).
-// Undan eski smenalar arxivga o'tgan — ularni faqat admin o'zgartira oladi.
-export const OCHIQ_KUNLAR = 2;
-
-export function smenaQulflanganmi(sana: string, bugun: string = toshkentSana()): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(sana)) return false;
-  return sana < sanagaKunQoshish(bugun, -(OCHIQ_KUNLAR - 1));
+// Joriy smena hozirgi vaqtdan orqada qolganmi (master almashtirishni unutgan):
+//  - bitta orqada bo'lsa, smena boshlanganidan 1 soat o'tgach (08:30 / 20:30) eslatadi;
+//  - undan ham ko'p orqada bo'lsa (masalan, dam olishdan keyin), darhol eslatadi.
+export function almashuvEslatmasi(sana: string, smena: string, vaqt: Date = new Date()): SmenaNuqtasi | null {
+  if (!sana || !smena) return null;
+  const hozir = hozirgiSmena(vaqt);
+  const joriy = { sana, smena };
+  if (smenaTartibi(joriy) >= smenaTartibi(hozir)) return null;
+  const bittaOrqada = birXilSmena(oldingiSmena(hozir.sana, hozir.smena), joriy);
+  if (bittaOrqada && hozir.otganDaqiqa < ESLATMA_KECHIKISHI) return null;
+  return { sana: hozir.sana, smena: hozir.smena };
 }

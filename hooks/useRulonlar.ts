@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { faolIshchilar, KALIT } from '@/lib/hisob';
-import { joriyRol, oyIshchilari } from '@/lib/mahalliyXotira';
-import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
-import { DEN, NOCH, keyingiSmena, oldingiSmena, smenaQisqa, smenaQulflanganmi, tungimi } from '@/lib/smena';
+import { oyIshchilari } from '@/lib/mahalliyXotira';
+import { birXilSmena, hozirgiSmena, keyingiSmena, oldingiSmena, smenaQisqa, tahrirlashMumkinmi, tungimi, type SmenaNuqtasi } from '@/lib/smena';
 import { hisobotIdsi, navbatdami, smenaIdsi, smenaMahalliyKaliti, yuborishYokiNavbat } from '@/lib/sinxron';
 import { NUQSON_TURLARI } from '@/lib/arxiv';
 import { moshinaNomi, moshinaRaqami } from '@/lib/moshina';
 
-// Arxivga o'tgan smena: faqat admin o'zgartira oladi
-const faqatKorish = (sana: string) => smenaQulflanganmi(sana) && joriyRol() !== 'admin';
+const JORIY_MAHALLIY = '_zavod_joriy'; // internet bo'lmaganda: shu qurilmadagi oxirgi ma'lum joriy smena (sinxronlanmaydi)
+const JORIY_TEKSHIRISH_MS = 20 * 1000; // boshqa qurilma smenani almashtirdimi — shuncha vaqtda tekshiriladi
+
+export type RulonlarRejimi = 'joriy' | 'tugagan' | 'arxiv';
 
 // --- Smena ma'lumotini solishtirish uchun bir xil ko'rinishga keltirish ---
 // (bo'sh rulonlar olib tashlanadi, raqamlar bir xil yoziladi). Shu orqali "haqiqatan o'zgardimi" aniqlanadi.
@@ -75,23 +76,69 @@ export function useRulonlar() {
   const kutayotganYuborishRef = useRef<null | (() => Promise<unknown>)>(null);
   const oldingiSmenaRef = useRef<{ sana: string; smena: string } | null>(null);
 
-  // 1. Ochilganda: master oxirgi tanlagan sana va smena (smenani master o'zi almashtiradi)
-  useEffect(() => {
-    const saqlanganSana = localStorage.getItem('zavod_oxirgi_sana');
-    const saqlanganSmena = localStorage.getItem('zavod_oxirgi_smena');
-    // Faqat u sana arxivga o'tib ketgan bo'lsa, bugungi kun ochiladi
-    setSana(saqlanganSana && !smenaQulflanganmi(saqlanganSana) ? saqlanganSana : toshkentSana());
-    setSmenaTuri(saqlanganSmena || DEN);
-    setIsInitialized(true);
+  // JORIY SMENA: bazada saqlanadi, hamma qurilmalar shu smenada ochadi.
+  // Master "tugagan smena"ni ochsa — bu faqat o'z ekranida, joriy smena va boshqa qurilmalar o'zgarmaydi.
+  const [joriy, setJoriy] = useState<SmenaNuqtasi | null>(null);
+  const joriyRef = useRef<SmenaNuqtasi | null>(null);
+  const korinishRef = useRef<SmenaNuqtasi>({ sana: '', smena: '' });
+  korinishRef.current = { sana, smena: smenaTuri };
+
+  const joriyniQollash = useCallback((j: SmenaNuqtasi, korinishniHam: boolean) => {
+    joriyRef.current = j;
+    setJoriy(j);
+    try {
+      Storage.prototype.setItem.call(window.localStorage, JORIY_MAHALLIY, JSON.stringify(j));
+    } catch {}
+    if (korinishniHam) {
+      setSana(j.sana);
+      setSmenaTuri(j.smena);
+    }
   }, []);
 
-  useEffect(() => {
-    if (sana) localStorage.setItem('zavod_oxirgi_sana', sana);
-  }, [sana]);
+  const tahrirMumkin = (s: string, sm: string) => tahrirlashMumkinmi(s, sm, joriyRef.current);
 
+  // 1. Ochilganda: joriy smenani bazadan olamiz (internet bo'lmasa — shu qurilmadagi oxirgi ma'lum)
   useEffect(() => {
-    if (smenaTuri) localStorage.setItem('zavod_oxirgi_smena', smenaTuri);
-  }, [smenaTuri]);
+    (async () => {
+      let j: SmenaNuqtasi | null = null;
+      try {
+        const res = await fetch(`/api/smena/joriy?t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) j = (await res.json())?.joriy || null;
+      } catch {}
+      if (!j) {
+        try {
+          j = JSON.parse(localStorage.getItem(JORIY_MAHALLIY) || 'null');
+        } catch {}
+      }
+      if (!j) {
+        const h = hozirgiSmena();
+        j = { sana: h.sana, smena: h.smena };
+      }
+      joriyniQollash(j, true);
+      setIsInitialized(true);
+    })();
+  }, [joriyniQollash]);
+
+  // Boshqa qurilma (masalan, ikkinchi master) smenani almashtirsa — hamma qurilma yangi joriy smenaga o'tadi.
+  // Tugagan smenani ko'rayotgan master o'sha joyda qoladi, faqat u smena arxivga o'tib ketgan bo'lsa joriyga qaytariladi.
+  useEffect(() => {
+    if (!isInitialized) return;
+    const t = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const res = await fetch(`/api/smena/joriy?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const j: SmenaNuqtasi | null = (await res.json())?.joriy || null;
+        const eski = joriyRef.current;
+        if (!j || (eski && birXilSmena(j, eski))) return;
+        const k = korinishRef.current;
+        const joriydaEdi = !!eski && birXilSmena(k, eski);
+        const endiTahrirlanmaydi = !tahrirlashMumkinmi(k.sana, k.smena, j);
+        joriyniQollash(j, joriydaEdi || endiTahrirlanmaydi);
+      } catch {}
+    }, JORIY_TEKSHIRISH_MS);
+    return () => clearInterval(t);
+  }, [isInitialized, joriyniQollash]);
 
   // Ma'lumotni ekranga qo'yish (bir smenaga tegishli hammasi birga)
   const malumotniQollash = useCallback((d: any, kalit: string) => {
@@ -192,7 +239,7 @@ export function useRulonlar() {
     const royxat = tartibliMoshinalar(moshinalar, moshinaMaqotlari);
     const surat = suratOlish(kontrolchi, master, royxat);
     if (surat === suratRef.current) return; // haqiqatda hech narsa o'zgarmagan
-    if (faqatKorish(sana)) return;
+    if (!tahrirMumkin(sana, smenaTuri)) return; // arxiv: hech kim o'zgartira olmaydi
 
     oxirgiTahrirRef.current = Date.now();
     const payload = {
@@ -260,7 +307,7 @@ export function useRulonlar() {
 
   // 5. Rulonlardagi nuqsonlardan operatorlar brakini Braklar jadvaliga avtomatik yozish
   useEffect(() => {
-    if (!sana || !isInitialized || faqatKorish(sana)) return;
+    if (!sana || !isInitialized || !tahrirMumkin(sana, smenaTuri)) return;
     if (yuklanganKalit !== smenaKaliti(sana, smenaTuri)) return; // boshqa smenaning ma'lumoti hali ekranda
     const joriyYilOy = sana.slice(0, 7);
     const kun = Number(sana.split('-')[2]);
@@ -349,29 +396,56 @@ export function useRulonlar() {
 
   const handleMoshinaDataChange = (id: MoshinaId, data: any) => setMoshinaMaqotlari(prev => ({ ...prev, [id]: data }));
 
-  // Keyingi smenaga o'tish: DEN -> shu kunning NOCH, NOCH -> ertangi DEN
-  const yangiSmenagaOtish = () => {
-    if (smenaTuri.includes('DEN')) {
-      setSmenaTuri(NOCH);
-    } else {
-      setSana(sanagaKunQoshish(sana, 1));
-      setSmenaTuri(DEN);
+  const rejim: RulonlarRejimi = !joriy
+    ? 'joriy'
+    : birXilSmena({ sana, smena: smenaTuri }, joriy)
+      ? 'joriy'
+      : tahrirlashMumkinmi(sana, smenaTuri, joriy)
+        ? 'tugagan'
+        : 'arxiv';
+
+  // Joriy smenani almashtirish (serverda). Xato bo'lsa — matni qaytadi.
+  const joriyniAlmashtirish = async (maqsad: SmenaNuqtasi): Promise<string | null> => {
+    try {
+      const res = await fetch('/api/smena/joriy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(maqsad),
+        cache: 'no-store'
+      });
+      const d = await res.json().catch(() => ({}));
+      if (d?.joriy) joriyniQollash(d.joriy, true);
+      if (res.ok) return null;
+      return d?.xato || 'Smenani almashtirib bo\'lmadi';
+    } catch {
+      return 'Internet yo\'q — smenani almashtirib bo\'lmadi. Ulanish tiklangach qayta bosing.';
     }
   };
 
-  // Smena tugmalari (aqlli): DEN -> NOCH sana o'zgarmaydi; NOCH -> DEN bo'lsa sana o'zi ertangi kunga o'tadi.
-  // Eski kunni ko'rish uchun sana maydoni qo'lda o'zgartiriladi.
-  const smenaTanlash = (qiymat: string) => {
-    if (!smenaTuri || tungimi(qiymat) === tungimi(smenaTuri)) return;
-    const k = keyingiSmena(sana, smenaTuri);
-    if (tungimi(smenaTuri)) setSana(k.sana); // NOCH -> ertangi DEN
-    setSmenaTuri(k.smena);
+  // Aqlli smena tugmalari (faqat joriy smenada): DEN -> shu kunning NOCH, NOCH -> ertangi DEN
+  const smenaTanlash = async (qiymat: string): Promise<string | null> => {
+    const j = joriyRef.current;
+    if (!j || rejim !== 'joriy' || tungimi(qiymat) === tungimi(j.smena)) return null;
+    return joriyniAlmashtirish(keyingiSmena(j.sana, j.smena));
   };
 
-  // Eslatmadagi "O'tish" tugmasi uchun: aniq smenaga o'tish
-  const smenagaOtish = (yangiSana: string, yangiSmena: string) => {
-    setSana(yangiSana);
-    setSmenaTuri(yangiSmena);
+  // Eslatmadagi "O'tish": aniq smenaga (navbatdagi yoki dam olishdan keyin — hozirgi)
+  const smenagaOtish = (maqsad: SmenaNuqtasi) => joriyniAlmashtirish(maqsad);
+
+  // Bir qadam orqaga: faqat tugagan smena (faqat shu ekranda)
+  const tugaganniOchish = () => {
+    const j = joriyRef.current;
+    if (!j) return;
+    const o = oldingiSmena(j.sana, j.smena);
+    setSana(o.sana);
+    setSmenaTuri(o.smena);
+  };
+
+  const joriygaQaytish = () => {
+    const j = joriyRef.current;
+    if (!j) return;
+    setSana(j.sana);
+    setSmenaTuri(j.smena);
   };
 
   // OLDINGI SMENADAN MOSHINALARNI KO'CHIRISH
@@ -434,8 +508,8 @@ export function useRulonlar() {
 
   return {
     moshinalar, sana, setSana, smenaTuri, setSmenaTuri, kontrolchi, setKontrolchi, master, setMaster,
-    moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, yangiSmenagaOtish, oldingiSmenadanKochirish,
-    smenaTanlash, smenagaOtish,
+    moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, oldingiSmenadanKochirish,
+    joriy, rejim, smenaTanlash, smenagaOtish, tugaganniOchish, joriygaQaytish,
     isLoaded 
   };
 }

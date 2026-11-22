@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sorovRoli } from '@/lib/sessiya';
-import { smenaQulflanganmi } from '@/lib/smena';
+import { tahrirlashMumkinmi } from '@/lib/smena';
+import { joriySmena } from '@/lib/joriySmena';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,9 +16,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Sana yoki smena noto\'g\'ri' }, { status: 400 });
     }
 
-    // Arxiv himoyasi: eski smenalarni faqat admin o'zgartira oladi (dalil buzilmasligi uchun)
-    if (smenaQulflanganmi(sana) && rol !== 'admin') {
-      return NextResponse.json({ error: 'Bu smena arxivga o\'tgan. Uni faqat admin o\'zgartira oladi.' }, { status: 403 });
+    // Arxiv himoyasi: faqat joriy va tugagan (bitta oldingi) smenani o'zgartirish mumkin.
+    // Qolgan smenalar arxiv — ularni HECH KIM (admin ham) o'zgartira olmaydi.
+    if (!tahrirlashMumkinmi(sana, smena, await joriySmena())) {
+      return NextResponse.json({ error: 'Bu smena arxivda. Arxivni hech kim o\'zgartira olmaydi.' }, { status: 403 });
     }
 
     const prismaMoshinalar = moshinalar.map((m: any) => ({

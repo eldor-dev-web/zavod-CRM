@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, eslatma: 'Smenalar alohida saqlanadi' }, { status: 200 });
     }
     // Bot so'rovlari faqat server (Telegram bot) tomonidan yoziladi
-    if (kalit === 'zavod_bot_sorovlar' || kalit.startsWith('zavod_hisobot_')) {
+    if (kalit === 'zavod_bot_sorovlar' || kalit === 'zavod_joriy_smena' || kalit.startsWith('zavod_hisobot_')) {
       return NextResponse.json({ ok: true, eslatma: 'Bot ma\'lumoti' }, { status: 200 });
     }
     if (kalit === PIN_KALITI) {
