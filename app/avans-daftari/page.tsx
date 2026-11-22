@@ -25,7 +25,8 @@ export default function AvansDaftariSahifasi() {
   }, []);
 
   useEffect(() => {
-    if (oy) setIshchilar(faolIshchilar(oyIshchilari(oy)));
+    if (!oy) return;
+    setIshchilar(faolIshchilar(oyIshchilari(oy)));
   }, [oy]);
 
   if (!oy) return null;
@@ -35,7 +36,7 @@ export default function AvansDaftariSahifasi() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">Avans daftari</h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">Ismni bosing yoki “+ Xodim” → summa va izoh → Saqlash</p>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">“+ Xodim” → ism, summa, izoh → Saqlash</p>
         </div>
         <div className="flex items-center gap-1.5 self-start sm:self-auto bg-white border border-slate-200 rounded-xl p-1">
           <button type="button" onClick={() => setOy(oyQoshish(oy, -1))} className="w-9 h-9 rounded-lg hover:bg-slate-100 font-black text-slate-600" aria-label="Oldingi oy">

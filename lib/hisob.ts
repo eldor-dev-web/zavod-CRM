@@ -165,13 +165,35 @@ export function ismQatordaBormi(qator: string, ism: string): boolean {
   return new RegExp(`(?<![${SOZ_BELGILARI}])${regexXavfsiz(toza)}(?![${SOZ_BELGILARI}])`, 'iu').test(qator);
 }
 
+// Summalarni "odamcha" yozilgan bo'lsa ham tushunish:
+//   300000, 300 000, 300,000, 1.500.000, 300 ming, 300k, 1,5 mln, 2 million
+// Qo'shimcha so'z (ming/mln) faqat 1000 dan kichik songa ko'paytiriladi: "300000 ming" = 300 000 (xato yozilgan deb qaraladi).
+// Sanalar ([05.11]) va 1000 dan kichik sonlar (masalan "12 kun") summa hisoblanmaydi.
+const SUMMA_TOKENI =
+  /(?<![\p{L}\p{N}])(\d{1,3}(?:[ ,.]\d{3})+|\d+(?:[.,]\d{1,2})?)(?:\s*(ming|минг|mln|million|миллион|млн|k|к)(?![\p{L}]))?(?![\p{N}])/giu;
+
+export type SummaTokeni = { matn: string; qiymat: number; joy: number };
+
+export function summaTokenlari(qator: string): SummaTokeni[] {
+  const sanasiz = qator.replace(/\[\d{1,2}\.\d{1,2}\]/g, (m) => ' '.repeat(m.length));
+  const natija: SummaTokeni[] = [];
+  for (const t of sanasiz.matchAll(SUMMA_TOKENI)) {
+    const [butun, raqam, qoshimcha] = t;
+    const guruhli = /^\d{1,3}(?:[ ,.]\d{3})+$/.test(raqam);
+    if (!guruhli && !qoshimcha && raqam.replace(/\D/g, '').length > 9) continue; // telefon raqami va h.k.
+    let qiymat = guruhli ? Number(raqam.replace(/\D/g, '')) : Number(raqam.replace(',', '.'));
+    if (qoshimcha && qiymat < 1000) {
+      const q = qoshimcha.toLowerCase();
+      qiymat *= q === 'ming' || q === 'минг' || q === 'k' || q === 'к' ? 1000 : 1_000_000;
+    }
+    qiymat = Math.round(qiymat);
+    if (qiymat >= 1000) natija.push({ matn: butun, qiymat, joy: t.index ?? 0 });
+  }
+  return natija;
+}
+
 function qatordagiSummalar(qator: string): number {
-  const sanasiz = qator.replace(/\[\d{1,2}\.\d{1,2}\]/g, '');
-  const raqamlar = sanasiz.match(/\b\d{1,3}(?:[ ,]\d{3})+\b|\b\d{4,9}\b/g) || [];
-  return raqamlar.reduce((jami, r) => {
-    const s = Number(r.replace(/\D/g, ''));
-    return jami + (s >= 1000 ? s : 0);
-  }, 0);
+  return summaTokenlari(qator).reduce((j, t) => j + t.qiymat, 0);
 }
 
 // ism berilsa faqat o'sha xodimning qatorlari, berilmasa butun bloknot yig'indisi
@@ -186,16 +208,18 @@ export function avansYigindisi(eslatmalar: string, ism?: string): number {
 // --- AVANS DAFTARI: qatorlarni ajratish (Avans daftari sahifasi va Telegram bot uchun) ---
 export type AvansQatori = { sana: string; summa: number; izoh: string };
 
-const SUMMA_REGEXI = /\b\d{1,3}(?:[ ,]\d{3})+\b|\b\d{4,9}\b/g;
-
 // "[05.11] Ali — 300,000 — kasallik uchun" -> "kasallik uchun"
 export function izohAjratish(qator: string, ism?: string): string {
   let m = qator.replace(/\[\d{1,2}\.\d{1,2}\]/g, ' ');
   if (ism?.trim()) {
     m = m.replace(new RegExp(`(?<![${SOZ_BELGILARI}])${regexXavfsiz(ism.trim())}(?![${SOZ_BELGILARI}])`, 'giu'), ' ');
   }
+  summaTokenlari(m)
+    .reverse()
+    .forEach((t) => {
+      m = m.slice(0, t.joy) + ' ' + m.slice(t.joy + t.matn.length);
+    });
   return m
-    .replace(SUMMA_REGEXI, ' ')
     .replace(/(\s*[—–-]\s*){2,}/g, ' — ')
     .replace(/^[\s—–\-:;,.]+|[\s—–\-:;,.]+$/g, '')
     .replace(/\s{2,}/g, ' ')
@@ -226,6 +250,76 @@ export function ismlarRegexi(ismlar: string[]): RegExp | null {
   const toza = Array.from(new Set(ismlar.map((i) => i.trim()).filter(Boolean))).sort((a, b) => b.length - a.length);
   if (toza.length === 0) return null;
   return new RegExp(`(?<![${SOZ_BELGILARI}])(${toza.map(regexXavfsiz).join('|')})(?![${SOZ_BELGILARI}])`, 'giu');
+}
+
+// --- ISMNI "AQLLI" TOPISH (xato yozilgan ism uchun taklif: "Alishr" -> "Alisher") ---
+const normal = (m: string) => m.toLowerCase().replace(/[ʻʼ‘’`']/g, "'").trim();
+
+function masofa(a: string, b: string): number {
+  const d: number[] = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let oldingi = d[0];
+    d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const vaqtincha = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, oldingi + (a[i - 1] === b[j - 1] ? 0 : 1));
+      oldingi = vaqtincha;
+    }
+  }
+  return d[b.length];
+}
+
+const ruxsatEtilganXato = (uzunlik: number) => (uzunlik <= 3 ? 0 : uzunlik <= 6 ? 1 : uzunlik <= 10 ? 2 : 3);
+
+export type IsmTaklifi = { topilgan: string; ism: string; joy: number };
+
+// Qatordagi so'zlar ichidan ishchi ismiga eng o'xshashini topadi (aniq mos kelmaganda)
+export function ismTaklifi(qator: string, ismlar: string[]): IsmTaklifi | null {
+  const sozlar = Array.from(qator.matchAll(/[\p{L}ʻʼ‘’`']+/gu)).map((m) => ({ soz: m[0], joy: m.index ?? 0 }));
+  let eng: (IsmTaklifi & { d: number }) | null = null;
+  let teng = false;
+  for (const ism of ismlar) {
+    const k = ism.trim().split(/\s+/).length;
+    const nIsm = normal(ism);
+    for (let i = 0; i + k <= sozlar.length; i++) {
+      const bolak = sozlar.slice(i, i + k);
+      const topilgan = qator.slice(bolak[0].joy, bolak[k - 1].joy + bolak[k - 1].soz.length);
+      const d = masofa(normal(bolak.map((b) => b.soz).join(' ')), nIsm);
+      if (d === 0 || d > ruxsatEtilganXato(nIsm.length)) continue;
+      if (!eng || d < eng.d) {
+        eng = { topilgan, ism, joy: bolak[0].joy, d };
+        teng = false;
+      } else if (d === eng.d && eng.ism !== ism) teng = true;
+    }
+  }
+  return eng && !teng ? { topilgan: eng.topilgan, ism: eng.ism, joy: eng.joy } : null;
+}
+
+// Tez yozish maydoni: "eldor 300 ming kasallik" -> { ism: "Eldor", summa: 300000, izoh: "kasallik" }
+export function tezYozuvTahlili(matn: string, ismlar: string[]) {
+  const r = ismlarRegexi(ismlar);
+  const aniq = r ? matn.match(new RegExp(r.source, 'iu')) : null;
+  let ism: string | null = null;
+  let topilgan = '';
+  let taxminiy = false;
+  const taklif = ismTaklifi(matn, ismlar);
+  // "ali valiev" -> aniq "Ali" emas, taxminiy "Ali Valiyev" (uzunroq ism shu joydan boshlansa)
+  const uzunrogi =
+    aniq && taklif && taklif.joy === aniq.index && taklif.ism.split(/\s+/).length > aniq[0].trim().split(/\s+/).length;
+  if (aniq && !uzunrogi) {
+    topilgan = aniq[0];
+    ism = ismlar.find((i) => normal(i) === normal(topilgan)) || topilgan;
+  } else {
+    const t = taklif;
+    if (t) {
+      ism = t.ism;
+      topilgan = t.topilgan;
+      taxminiy = true;
+    }
+  }
+  const summa = qatordagiSummalar(matn);
+  const qolgani = topilgan ? matn.replace(topilgan, ' ') : matn;
+  return { ism, taxminiy, summa, izoh: izohAjratish(qolgani) };
 }
 
 // --- OYLIK: hammasi bir joyda ---

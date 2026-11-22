@@ -119,14 +119,15 @@ async function hisobotMatni(ishchi: Ishchi, oy: string) {
     qatorlar.push(`• <b>Brak jarimasi:</b> -${pulFormat(o.brakJarima)} UZS (${metrlar})`);
   }
   if (o.avans > 0) {
-    // Avans daftaridagi har bir qator: sanasi, summasi va izohi bilan
-    qatorlar.push('', `💸 <b>Avanslar:</b>`);
-    avansQatorlari(manbalar.eslatmalar, String(ishchi.ism ?? '')).forEach((a) => {
-      const [kun, oyRaqami] = a.sana.split('.').map(Number);
-      const sana = kun && oyRaqami ? `${kun}-${OY_NOMLARI[oyRaqami - 1] || ''}: ` : '';
-      qatorlar.push(`• ${sana}${pulFormat(a.summa)} UZS${a.izoh ? ` — <i>${htmlXavfsiz(a.izoh)}</i>` : ''}`);
-    });
-    qatorlar.push(`<b>Jami avans:</b> -${pulFormat(o.avans)} UZS`);
+    qatorlar.push(`• <b>Olingan avans:</b> -${pulFormat(o.avans)} UZS`);
+    // Ostida: faqat izoh yozilgan avanslar (nima uchun olingani), sanasi va summasi bilan
+    avansQatorlari(manbalar.eslatmalar, String(ishchi.ism ?? ''))
+      .filter((a) => a.izoh)
+      .forEach((a) => {
+        const [kun, oyRaqami] = a.sana.split('.').map(Number);
+        const sana = kun && oyRaqami ? `${kun}-${OY_NOMLARI[oyRaqami - 1] || ''}, ` : '';
+        qatorlar.push(`    ↳ <i>${sana}${pulFormat(a.summa)} — ${htmlXavfsiz(a.izoh)}</i>`);
+      });
   }
   qatorlar.push('', `💵 <b>Qo'lga tegadi: ${pulFormat(o.sof)} UZS</b>`);
 
