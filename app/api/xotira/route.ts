@@ -46,6 +46,8 @@ export async function GET(req: NextRequest) {
         AND: [
           { kalit: { notIn: [PIN_KALITI, 'zavod_telegram_bot_token', 'zavod_oxirgi_sana', 'zavod_oxirgi_smena', 'zavod_foydalanuvchi', 'zavod_bot_sorovlar'] } },
           { NOT: { kalit: { startsWith: 'zavod_smena_' } } },
+          // Smena hisobotlari qachon yuborilgani — faqat server uchun
+          { NOT: { kalit: { startsWith: 'zavod_hisobot_' } } },
           // Avans daftarini faqat admin oladi
           ...(rol === 'admin' ? [] : FAQAT_ADMIN_PREFIKSLAR.map((p) => ({ NOT: { kalit: { startsWith: p } } })))
         ]
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, eslatma: 'Smenalar alohida saqlanadi' }, { status: 200 });
     }
     // Bot so'rovlari faqat server (Telegram bot) tomonidan yoziladi
-    if (kalit === 'zavod_bot_sorovlar') {
+    if (kalit === 'zavod_bot_sorovlar' || kalit.startsWith('zavod_hisobot_')) {
       return NextResponse.json({ ok: true, eslatma: 'Bot ma\'lumoti' }, { status: 200 });
     }
     if (kalit === PIN_KALITI) {

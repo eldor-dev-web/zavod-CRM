@@ -21,6 +21,8 @@ export function sinxronlanadimi(kalit: string): boolean {
 
 export const xotiraIdsi = (kalit: string) => `x:${kalit}`;
 export const smenaIdsi = (sana: string, smena: string) => `s:${sana}|${smena}`;
+// Smena hisoboti (PDF -> Telegram kanal) so'rovi ham navbat orqali: internet bo'lmasa keyin yuboriladi
+export const hisobotIdsi = (sana: string, smena: string) => `h:${sana}|${smena}`;
 export const smenaMahalliyKaliti = (sana: string, smena: string) => `zavod_smena_${sana}_${smena}`;
 
 // --- Holat (ekrandagi belgi uchun) ---
@@ -110,6 +112,10 @@ async function idniYuborish(id: string): Promise<Natija> {
     } catch {
       return 'rad';
     }
+  }
+  if (id.startsWith('h:')) {
+    const [sana, smena] = id.slice(2).split('|');
+    return postQilish('/api/hisobot/smena', { sana, smena });
   }
   return 'ok';
 }

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { faolIshchilar, KALIT } from '@/lib/hisob';
 import { joriyRol, oyIshchilari } from '@/lib/mahalliyXotira';
 import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
-import { DEN, NOCH, oldingiSmena, smenaQulflanganmi } from '@/lib/smena';
-import { navbatdami, smenaIdsi, smenaMahalliyKaliti, yuborishYokiNavbat } from '@/lib/sinxron';
+import { DEN, NOCH, oldingiSmena, smenaQisqa, smenaQulflanganmi } from '@/lib/smena';
+import { hisobotIdsi, navbatdami, smenaIdsi, smenaMahalliyKaliti, yuborishYokiNavbat } from '@/lib/sinxron';
 import { NUQSON_TURLARI } from '@/lib/arxiv';
 import { moshinaNomi, moshinaRaqami } from '@/lib/moshina';
 
@@ -72,7 +72,8 @@ export function useRulonlar() {
   const suratRef = useRef(''); // bazaga oxirgi yuborilgan (yoki yuklangan) holat
   const oxirgiTahrirRef = useRef(0); // foydalanuvchi oxirgi marta qachon nimadir o'zgartirdi
   const yuklanganVaqtRef = useRef(0);
-  const kutayotganYuborishRef = useRef<null | (() => void)>(null);
+  const kutayotganYuborishRef = useRef<null | (() => Promise<unknown>)>(null);
+  const oldingiSmenaRef = useRef<{ sana: string; smena: string } | null>(null);
 
   // 1. Ochilganda: master oxirgi tanlagan sana va smena (smenani master o'zi almashtiradi)
   useEffect(() => {
@@ -111,6 +112,29 @@ export function useRulonlar() {
     yuklanganKalitRef.current = kalit;
     suratRef.current = suratOlish(d?.kontrolchi, d?.master, royxat);
   }, []);
+
+  // 1.5. Smena almashganda:
+  //  a) eski smenaning hali yuborilmagan oxirgi o'zgarishini DARHOL bazaga yuboramiz (yo'qolmasin);
+  //  b) agar bu navbatdagi smenaga haqiqiy o'tish bo'lsa (DEN -> shu kunning NOCH, NOCH -> ertangi DEN),
+  //     tugagan smenaning PDF hisobotini Telegram kanalga so'raymiz. Eski kunni ko'rish uchun sana
+  //     o'zgartirilsa yoki orqaga qaytilsa, hech narsa yuborilmaydi. Bo'sh smenani server o'zi o'tkazib yuboradi.
+  //  Bu effekt 2-effektdan OLDIN turishi shart (u kutayotganYuborishRef ni tozalaydi).
+  useEffect(() => {
+    if (!sana || !smenaTuri || !isInitialized) return;
+    const eski = oldingiSmenaRef.current;
+    oldingiSmenaRef.current = { sana, smena: smenaTuri };
+    const kutayotgan = kutayotganYuborishRef.current;
+    kutayotganYuborishRef.current = null;
+    if (!eski) return;
+
+    const kutilgan = oldingiSmena(sana, smenaTuri);
+    const haqiqiyOtish = kutilgan.sana === eski.sana && smenaQisqa(kutilgan.smena) === smenaQisqa(eski.smena);
+
+    (async () => {
+      if (kutayotgan) await kutayotgan(); // avval ma'lumot bazaga yetib borsin
+      if (haqiqiyOtish) await yuborishYokiNavbat(hisobotIdsi(eski.sana, eski.smena));
+    })();
+  }, [sana, smenaTuri, isInitialized]);
 
   // 2. Smena tanlanganda: avval shu kompyuterdagi nusxa, keyin bazadagi
   useEffect(() => {
@@ -183,7 +207,7 @@ export function useRulonlar() {
     const yuborish = () => {
       kutayotganYuborishRef.current = null;
       suratRef.current = surat;
-      yuborishYokiNavbat(smenaIdsi(sana, smenaTuri));
+      return yuborishYokiNavbat(smenaIdsi(sana, smenaTuri));
     };
     kutayotganYuborishRef.current = yuborish;
     const taymer = setTimeout(yuborish, 1200);

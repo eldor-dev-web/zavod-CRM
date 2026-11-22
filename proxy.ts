@@ -4,7 +4,8 @@ import type { NextRequest } from 'next/server';
 import { BOSH_SAHIFA, SESSIYA_COOKIE, sessiyaniTekshirish, type Rol } from '@/lib/sessiya';
 
 // Tizimga kirmasdan ochiladigan API manzillar
-const OCHIQ_API = ['/api/auth/login', '/api/auth/logout', '/api/telegram'];
+// /api/hisobot/kunlik — Vercel'ning kunlik avtomatik chaqiruvi (o'zi CRON_SECRET bilan tekshiradi)
+const OCHIQ_API = ['/api/auth/login', '/api/auth/logout', '/api/telegram', '/api/hisobot/kunlik'];
 
 // Sahifalarga kim kira oladi (Sidebar menyusi bilan bir xil)
 const SAHIFA_RUXSATLARI: { prefiks: string; rollar: Rol[] }[] = [
