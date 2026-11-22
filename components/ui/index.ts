@@ -8,6 +8,7 @@ export { default as Belgi } from './Belgi';
 export { Jadval, jadvalSarlavha, jadvalKatak, jadvalRaqam, jadvalQator } from './Jadval';
 export { default as Oyna } from './Oyna';
 export { default as BoshHolat } from './BoshHolat';
+export { default as Ogohlantirish } from './Ogohlantirish';
 export { default as SahifaSarlavhasi } from './SahifaSarlavhasi';
 export { xabarBer, tasdiqla } from './xabar';
 export { cn } from './cn';

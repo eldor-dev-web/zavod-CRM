@@ -390,10 +390,9 @@ export function useRulonlar() {
   };
   
   const jadvalniOchirish = (idToRemove: MoshinaId) => {
-    if (window.confirm("Ushbu moshina jadvalini o'chirib yubormoqchimisiz?")) {
-      setMoshinalar(prev => prev.filter(m => m.id !== idToRemove));
-      setMoshinaMaqotlari(prev => { const yangi = { ...prev }; delete yangi[idToRemove]; return yangi; });
-    }
+    // Tasdiqlash sahifada (yangi oyna) so'raladi
+    setMoshinalar(prev => prev.filter(m => m.id !== idToRemove));
+    setMoshinaMaqotlari(prev => { const yangi = { ...prev }; delete yangi[idToRemove]; return yangi; });
   };
 
   const handleMoshinaDataChange = (id: MoshinaId, data: any) => setMoshinaMaqotlari(prev => ({ ...prev, [id]: data }));
