@@ -8,12 +8,7 @@ import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { toshkentOy, toshkentSana } from '@/lib/sana';
 import { oyYopilganmi } from '@/lib/oyQulfi';
 import { DAVOMAT_KALITI, davomatKatakYozish, davomatKutayotganlar } from '@/lib/sinxron';
-
-const Icons = {
-  Users: () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>,
-  Calendar: () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>,
-  Wallet: () => <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" /></svg>
-};
+import { SahifaSarlavhasi, OyTanlash, Ogohlantirish, Korsatkich, tasdiqla } from '@/components/ui';
 
 export default function IshchilarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
@@ -103,9 +98,15 @@ export default function IshchilarSahifasi() {
     }
   };
 
-  const xodimniOchirish = (id: Ishchi['id'], ism: string) => {
+  const xodimniOchirish = async (id: Ishchi['id'], ism: string) => {
     if (yopiq) return;
-    if (!window.confirm(`Rostdan ham "${ism}"ni ushbu oydan oʻchirmoqchimisiz?`)) return;
+    const ha = await tasdiqla({
+      sarlavha: `${ism}ni o'chirasizmi?`,
+      matn: "Xodim faqat shu oy ro'yxatidan o'chiriladi.",
+      tasdiqMatni: "O'chirish",
+      xavfli: true
+    });
+    if (!ha) return;
     setIsModified(true);
     setIshchilar((prev) => prev.filter((item) => item.id !== id));
   };
@@ -155,72 +156,40 @@ export default function IshchilarSahifasi() {
   const umumiyJamiOylik = haqiqiyIshchilar.reduce((jami, ishchi) => jami + oylikniHisoblash(ishchi).hisoblangan, 0);
 
   return (
-    <div className="text-slate-800">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
-            <span className="bg-white p-2 rounded-xl shadow-sm border border-slate-200 text-indigo-600"><Icons.Users /></span>
-            Ishchilar va Oylik
-          </h1>
-        </div>
-        <div className="bg-white px-4 py-2.5 rounded-xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-200 flex items-center gap-3">
-          <span className="text-slate-400"><Icons.Calendar /></span>
-          <input
-            type="month"
-            value={tanlanganOy}
-            onChange={(e) => setTanlanganOy(e.target.value)}
-            className="border-none bg-transparent font-semibold text-slate-700 text-sm outline-none cursor-pointer"
-          />
-        </div>
-      </div>
+    <div>
+      <SahifaSarlavhasi sarlavha="Ishchilar" amallar={<OyTanlash oy={tanlanganOy} ozgartirish={setTanlanganOy} />} />
 
       {yopiq && (
-        <div className="mb-4 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm font-black text-slate-700">
-          🔒 Oy yopilgan — bu oyning davomati va ishchilar ro&apos;yxatini o&apos;zgartirib bo&apos;lmaydi
-        </div>
+        <Ogohlantirish tur="oddiy" className="mb-4">
+          Oy yopilgan — bu oyning davomati va ishchilar ro&apos;yxatini o&apos;zgartirib bo&apos;lmaydi
+        </Ogohlantirish>
       )}
 
-      <div className="mb-8">
-        <IshchilarJadvali
-          yopiq={yopiq}
-          ishchilar={ishchilar}
-          davomat={davomat}
-          tanlanganOy={tanlanganOy}
-          kunlarMassivi={kunlarMassivi}
-          xodimniTahrirlash={(xodim: any) => {
-            if (yopiq) return;
-            setTanlanganXodim(xodim);
-            setModalOchiq(true);
-          }}
-          yangiXodimQoshish={() => {
-            if (yopiq) return;
-            setTanlanganXodim(null);
-            setModalOchiq(true);
-          }}
-          statusniOzgartirish={statusniOzgartirish}
-          moshinaSoniniOzgartirish={moshinaSoniniOzgartirish}
-          oylikniHisoblash={oylikniHisoblash}
-        />
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Korsatkich ixcham nomi="Ishchilar" qiymat={haqiqiyIshchilar.length} birlik="nafar" />
+        <Korsatkich ixcham nomi="Oylik jamg'armasi" qiymat={umumiyJamiOylik.toLocaleString('ru-RU')} birlik="UZS" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-3xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] border border-slate-100 flex items-center gap-5">
-          <div className="bg-slate-50 text-slate-500 p-4 rounded-2xl border border-slate-100"><Icons.Users /></div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Jami Ishchilar Soni</p>
-            <h2 className="text-2xl font-black text-slate-800">{haqiqiyIshchilar.length} <span className="text-sm font-semibold text-slate-400">nafar</span></h2>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-6 shadow-lg shadow-indigo-600/20 text-white flex items-center gap-5 relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 opacity-10 scale-150"><Icons.Wallet /></div>
-          <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm border border-white/10 relative z-10"><Icons.Wallet /></div>
-          <div className="relative z-10">
-            <p className="text-[11px] font-semibold text-indigo-100 uppercase tracking-widest mb-1">Umumiy Oylik Jamgʻarmasi</p>
-            <h2 className="text-xl lg:text-2xl font-black tracking-tight">{umumiyJamiOylik.toLocaleString('ru-RU')} <span className="text-sm font-medium text-indigo-200">UZS</span></h2>
-          </div>
-        </div>
-      </div>
+      <IshchilarJadvali
+        yopiq={yopiq}
+        ishchilar={ishchilar}
+        davomat={davomat}
+        tanlanganOy={tanlanganOy}
+        kunlarMassivi={kunlarMassivi}
+        xodimniTahrirlash={(xodim: any) => {
+          if (yopiq) return;
+          setTanlanganXodim(xodim);
+          setModalOchiq(true);
+        }}
+        yangiXodimQoshish={() => {
+          if (yopiq) return;
+          setTanlanganXodim(null);
+          setModalOchiq(true);
+        }}
+        statusniOzgartirish={statusniOzgartirish}
+        moshinaSoniniOzgartirish={moshinaSoniniOzgartirish}
+        oylikniHisoblash={oylikniHisoblash}
+      />
 
       <XodimModal
         ochiq={modalOchiq}

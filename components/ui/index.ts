@@ -10,5 +10,6 @@ export { default as Oyna } from './Oyna';
 export { default as BoshHolat } from './BoshHolat';
 export { default as Ogohlantirish } from './Ogohlantirish';
 export { default as SahifaSarlavhasi } from './SahifaSarlavhasi';
+export { default as OyTanlash, oyMatni, oyQoshish } from './OyTanlash';
 export { xabarBer, tasdiqla } from './xabar';
 export { cn } from './cn';
