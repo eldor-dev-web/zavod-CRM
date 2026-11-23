@@ -27,7 +27,7 @@ export default function IshchilarJadvali({
     <div className="bg-sirt border border-chiziq rounded-karta overflow-hidden">
       <div className="flex items-center justify-between gap-2 px-3 md:px-4 py-2.5 border-b border-chiziq">
         <p className="text-xs md:text-sm text-matn-3 min-w-0">
-          {yopiq ? 'Oy yopilgan' : fokusKun ? `${fokusKun}-kun ochiq — kataklarni bosing` : 'Belgilash uchun kun raqamini bosing'}
+          {yopiq ? '' : fokusKun ? `${fokusKun}-kun ochiq — kataklarni bosing` : 'Belgilash uchun kun raqamini bosing'}
         </p>
         {!yopiq && (
           <Tugma kichik ikonka="qoshish" onClick={yangiXodimQoshish} className="shrink-0">

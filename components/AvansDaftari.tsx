@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { avansJami, noaniqQatorlarSoni, pulFormat, type Ishchi } from '@/lib/hisob';
 import { toshkentSana } from '@/lib/sana';
+import { Oyna, Tugma, Ogohlantirish, Korsatkich, cn } from '@/components/ui';
 
 // AVANS DAFTARI (faqat admin) — sodda versiya.
 // Bitta Notes: ism yozilgan qatordagi summa shu ishchining avansi (oylik ham, bot ham shundan hisoblaydi).
@@ -20,7 +21,6 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [], yopiq = fals
   const [summa, setSumma] = useState('');
   const [izoh, setIzoh] = useState('');
   const [xato, setXato] = useState('');
-  const summaRef = useRef<HTMLInputElement>(null);
 
   const xotiraKaliti = `zavod_eslatmalar_${tanlanganOy}`;
 
@@ -81,18 +81,11 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [], yopiq = fals
 
   const oynaniYopish = () => setOynaOchiq(false);
 
-  useEffect(() => {
-    if (!oynaOchiq) return;
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOynaOchiq(false);
-    window.addEventListener('keydown', esc);
-    return () => window.removeEventListener('keydown', esc);
-  }, [oynaOchiq]);
-
   const ismTanlash = (tanlangan: string) => {
     setIsm(tanlangan);
     setRoyxatOchiq(false);
     setXato('');
-    setTimeout(() => summaRef.current?.focus(), 30);
+    setTimeout(() => document.getElementById('avans-summa')?.focus(), 30);
   };
 
   const ismKlaviatura = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -124,126 +117,122 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [], yopiq = fals
   const oyJami = avansJami(matn, ismlar);
   const noaniqSoni = noaniqQatorlarSoni(matn, ismlar);
   const maydon =
-    'w-full h-11 px-3 rounded-xl border border-slate-200 text-base sm:text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400';
+    'w-full h-11 md:h-10 px-3 rounded-boshqaruv bg-sirt border border-chiziq-2 text-base md:text-sm text-matn placeholder:text-matn-3 outline-none transition-colors focus:border-asosiy focus:ring-2 focus:ring-asosiy/20';
+  const yorliq = 'block mb-1.5 text-sm font-semibold text-matn-2';
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/90 overflow-hidden">
-      {/* TEPA: Notes + Oy jami + "+ Xodim" + Qulf */}
-      <div className="p-3 sm:px-4 sm:py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1.5 text-slate-800 font-black text-sm mr-auto">
-          <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.3" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          <span>Notes</span>
-          {oyJami > 0 && <span className="ml-1 text-xs font-bold text-slate-400">· Oy jami: <span className="text-rose-600">{pulFormat(oyJami)}</span></span>}
-        </div>
-
-        {yopiq ? (
-          <span className="h-9 px-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-black text-slate-600 inline-flex items-center">🔒 Oy yopilgan</span>
-        ) : (
-        <>
-        <button
-          type="button"
-          onClick={oynaniOchish}
-          className="h-9 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-black transition"
-        >
-          + Xodim
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setQulflangan(!qulflangan)}
-          className={`h-9 px-3 rounded-xl border text-xs font-bold transition ${
-            qulflangan ? 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100' : 'bg-slate-800 text-white border-slate-800'
-          }`}
-        >
-          {qulflangan ? '🔒 Tahrirlash' : '✓ Tayyor'}
-        </button>
-        </>
-        )}
-      </div>
+    <div className="space-y-4">
+      <Korsatkich ixcham nomi="Oy jami avans" qiymat={pulFormat(oyJami)} birlik="so'm" />
 
       {noaniqSoni > 0 && (
-        <p className="mx-3 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
-          ⚠️ {noaniqSoni} ta qatorda bir nechta ishchi yozilgan — bu summalar hech kimga hisoblanmadi. Qatorda bitta ishchi qoldiring.
-        </p>
+        <Ogohlantirish tur="xato">
+          {noaniqSoni} ta qatorda bir nechta ishchi yozilgan — bu summalar hech kimga hisoblanmadi. Qatorda bitta ishchi qoldiring.
+        </Ogohlantirish>
       )}
 
-      {/* NOTES */}
-      <div className="p-2.5 sm:p-3">
-        <textarea
-          ref={textareaRef}
-          readOnly={qulflangan || yopiq}
-          value={matn}
-          onChange={(e) => matnniSaqlash(e.target.value)}
-          onKeyDown={klaviaturaBosilganda}
-          onDoubleClick={() => qulflangan && !yopiq && setQulflangan(false)}
-          placeholder="Hali yozuv yo‘q. “+ Xodim” tugmasini bosing."
-          className={`w-full overflow-hidden resize-none min-h-[150px] text-base sm:text-sm leading-7 font-semibold text-slate-800 placeholder:text-slate-400 placeholder:font-normal outline-none rounded-xl p-3 transition-colors ${
-            qulflangan ? 'bg-slate-50/70 cursor-default' : 'bg-white ring-2 ring-indigo-500/25 focus:ring-indigo-500/50'
-          }`}
-        />
+      <div className="bg-sirt border border-chiziq rounded-karta overflow-hidden">
+        {/* TEPA: Notes + Tahrirlash + "+ Xodim" */}
+        <div className="flex items-center gap-2 px-3 md:px-4 py-2.5 border-b border-chiziq">
+          <span className="mr-auto text-sm md:text-base font-semibold text-matn">Notes</span>
+          {!yopiq && (
+            <>
+              <Tugma kichik ikonka={qulflangan ? 'tahrir' : 'tasdiq'} onClick={() => setQulflangan(!qulflangan)}>
+                {qulflangan ? 'Tahrirlash' : 'Tayyor'}
+              </Tugma>
+              <Tugma kichik tur="asosiy" ikonka="qoshish" onClick={oynaniOchish}>
+                Xodim
+              </Tugma>
+            </>
+          )}
+        </div>
+
+        {/* NOTES */}
+        <div className="p-2.5 md:p-3">
+          <textarea
+            ref={textareaRef}
+            readOnly={qulflangan || yopiq}
+            value={matn}
+            onChange={(e) => matnniSaqlash(e.target.value)}
+            onKeyDown={klaviaturaBosilganda}
+            onDoubleClick={() => qulflangan && !yopiq && setQulflangan(false)}
+            placeholder="Hali yozuv yo‘q. “+ Xodim” tugmasini bosing."
+            className={cn(
+              'w-full overflow-hidden resize-none min-h-[150px] text-base md:text-sm leading-7 text-matn placeholder:text-matn-3 outline-none rounded-boshqaruv p-3 transition-colors',
+              qulflangan || yopiq ? 'bg-sirt-2 cursor-default' : 'bg-sirt ring-2 ring-asosiy/30 focus:ring-asosiy/60'
+            )}
+          />
+        </div>
       </div>
 
       {/* OYNA: Ism + Summa + Izoh */}
-      {oynaOchiq && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 sm:p-4" onClick={oynaniYopish}>
-          <form
-            onSubmit={saqlash}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl p-4 sm:p-5 space-y-3"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-lg font-black text-slate-900">Avans qo‘shish</p>
-              <span className="text-xs font-bold text-slate-400">{yozuvSanasi}</span>
-            </div>
-
-            {/* Ism: yozganda pastda ishchilar chiqadi */}
-            <div className="relative">
-              <input
-                type="text"
-                autoFocus
-                placeholder="Ism"
-                value={ism}
-                onChange={(e) => {
-                  setIsm(e.target.value);
-                  setRoyxatOchiq(true);
-                  setBelgilangan(0);
-                  setXato('');
-                }}
-                onFocus={() => setRoyxatOchiq(true)}
-                onKeyDown={ismKlaviatura}
-                className={maydon}
-                autoComplete="off"
-              />
-              {royxatOchiq && mosIsmlar.length > 0 && (
-                <ul className="absolute z-10 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg py-1">
-                  {mosIsmlar.map((i, idx) => (
-                    <li key={i}>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => ismTanlash(i)}
-                        className={`w-full text-left px-3 py-2 text-sm font-semibold ${
-                          idx === belgilangan ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        {i}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {royxatOchiq && ism.trim() && mosIsmlar.length === 0 && (
-                <p className="mt-1 text-xs font-semibold text-slate-400">Bunday ishchi topilmadi</p>
-              )}
-            </div>
-
+      <Oyna
+        ochiq={oynaOchiq}
+        yopish={oynaniYopish}
+        sarlavha={
+          <>
+            Avans qo‘shish <span className="ml-1 text-sm font-normal text-matn-3">{yozuvSanasi}</span>
+          </>
+        }
+        amallar={
+          <>
+            <Tugma onClick={oynaniYopish}>Bekor qilish</Tugma>
+            <Tugma type="submit" form="avans-forma" tur="asosiy">
+              Saqlash
+            </Tugma>
+          </>
+        }
+      >
+        <form id="avans-forma" onSubmit={saqlash} className="space-y-4">
+          {/* Ism: yozganda pastda ishchilar chiqadi */}
+          <div>
+            <label htmlFor="avans-ism" className={yorliq}>
+              Ism
+            </label>
             <input
-              ref={summaRef}
+              id="avans-ism"
+              type="text"
+              autoFocus
+              placeholder="Ishchi ismi"
+              value={ism}
+              onChange={(e) => {
+                setIsm(e.target.value);
+                setRoyxatOchiq(true);
+                setBelgilangan(0);
+                setXato('');
+              }}
+              onFocus={() => setRoyxatOchiq(true)}
+              onKeyDown={ismKlaviatura}
+              className={maydon}
+              autoComplete="off"
+            />
+            {royxatOchiq && mosIsmlar.length > 0 && (
+              <ul className="mt-1 max-h-56 overflow-auto rounded-boshqaruv border border-chiziq bg-sirt py-1">
+                {mosIsmlar.map((i, idx) => (
+                  <li key={i}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => ismTanlash(i)}
+                      className={cn('w-full text-left px-3 py-2 text-sm font-medium', idx === belgilangan ? 'bg-asosiy-och text-asosiy' : 'text-matn hover:bg-sirt-2')}
+                    >
+                      {i}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {royxatOchiq && ism.trim() && mosIsmlar.length === 0 && <p className="mt-1 text-xs text-matn-3">Bunday ishchi topilmadi</p>}
+          </div>
+
+          <div>
+            <label htmlFor="avans-summa" className={yorliq}>
+              Summa
+            </label>
+            <input
+              id="avans-summa"
               type="text"
               inputMode="numeric"
-              placeholder="Summa"
+              placeholder="200 000"
               value={summa}
               onFocus={() => setRoyxatOchiq(false)}
               onChange={(e) => {
@@ -253,30 +242,27 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [], yopiq = fals
               }}
               className={maydon}
             />
+          </div>
 
+          <div>
+            <label htmlFor="avans-izoh" className={yorliq}>
+              Izoh (ixtiyoriy)
+            </label>
             <input
+              id="avans-izoh"
               type="text"
-              placeholder="Izoh (ixtiyoriy)"
+              placeholder="Nima uchun"
               value={izoh}
               maxLength={120}
               onFocus={() => setRoyxatOchiq(false)}
               onChange={(e) => setIzoh(e.target.value)}
               className={maydon}
             />
+          </div>
 
-            {xato && <p className="text-xs font-bold text-rose-600">{xato}</p>}
-
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button type="button" onClick={oynaniYopish} className="h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold">
-                Bekor qilish
-              </button>
-              <button type="submit" className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-black">
-                Saqlash
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          {xato && <p className="text-sm font-semibold text-xato">{xato}</p>}
+        </form>
+      </Oyna>
     </div>
   );
 }

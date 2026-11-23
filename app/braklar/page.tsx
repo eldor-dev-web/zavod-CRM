@@ -6,7 +6,7 @@ import { oqish } from '@/lib/mahalliyXotira';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { toshkentOy, toshkentSana } from '@/lib/sana';
 import { oyYopilganmi } from '@/lib/oyQulfi';
-import { SahifaSarlavhasi, OyTanlash, Ogohlantirish, Korsatkich, BoshHolat, Tugma, Ikonka } from '@/components/ui';
+import { SahifaSarlavhasi, OyTanlash, Korsatkich, BoshHolat, Tugma, Ikonka } from '@/components/ui';
 
 export default function BraklarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
@@ -132,11 +132,6 @@ export default function BraklarSahifasi() {
         }
       />
 
-      {yopiq && (
-        <Ogohlantirish tur="oddiy" className="mb-4">
-          Oy yopilgan — bu oyning braklarini o&apos;zgartirib bo&apos;lmaydi
-        </Ogohlantirish>
-      )}
 
       <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2 md:gap-3 mb-4">
         <Korsatkich ixcham nomi="Igna" qiymat={<span className="text-xato">{umumiyIgnaMetr}</span>} birlik="m" />

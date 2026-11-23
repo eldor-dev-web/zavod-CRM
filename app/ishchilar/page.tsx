@@ -8,7 +8,7 @@ import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { toshkentOy, toshkentSana } from '@/lib/sana';
 import { oyYopilganmi } from '@/lib/oyQulfi';
 import { DAVOMAT_KALITI, davomatKatakYozish, davomatKutayotganlar } from '@/lib/sinxron';
-import { SahifaSarlavhasi, OyTanlash, Ogohlantirish, Korsatkich, tasdiqla } from '@/components/ui';
+import { SahifaSarlavhasi, OyTanlash, Korsatkich, tasdiqla } from '@/components/ui';
 
 export default function IshchilarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
@@ -159,11 +159,6 @@ export default function IshchilarSahifasi() {
     <div>
       <SahifaSarlavhasi sarlavha="Ishchilar" amallar={<OyTanlash oy={tanlanganOy} ozgartirish={setTanlanganOy} />} />
 
-      {yopiq && (
-        <Ogohlantirish tur="oddiy" className="mb-4">
-          Oy yopilgan — bu oyning davomati va ishchilar ro&apos;yxatini o&apos;zgartirib bo&apos;lmaydi
-        </Ogohlantirish>
-      )}
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Korsatkich ixcham nomi="Ishchilar" qiymat={haqiqiyIshchilar.length} birlik="nafar" />
