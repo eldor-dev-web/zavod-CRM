@@ -28,7 +28,7 @@ export default function AvansDaftariSahifasi() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <SahifaSarlavhasi sarlavha="Avans daftari" izoh="+ Xodim → ism, summa, izoh → Saqlash" amallar={<OyTanlash oy={oy} ozgartirish={setOy} />} />
+            <SahifaSarlavhasi sarlavha="Avans daftari" amallar={<OyTanlash oy={oy} ozgartirish={setOy} />} />
 
       <AvansDaftari key={oy} tanlanganOy={oy} ishchilar={ishchilar} yopiq={!!bugun && oyYopilganmi(oy, bugun)} />
     </div>
