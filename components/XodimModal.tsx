@@ -95,7 +95,7 @@ export default function XodimModal({ ochiq, yopish, tanlanganXodim, lavozimlarBa
               ikonka="ochirish"
               aria-label="Xodimni o'chirish"
               title="Xodimni o'chirish"
-              className="text-xato hover:bg-xato-och px-3"
+              className="text-xato! hover:bg-xato-och! px-3!"
               onClick={() => {
                 ochirish(tanlanganXodim.id, tanlanganXodim.ism);
                 yopish();

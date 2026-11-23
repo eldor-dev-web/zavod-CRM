@@ -6,6 +6,7 @@ import { oqish } from '@/lib/mahalliyXotira';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { toshkentOy, toshkentSana } from '@/lib/sana';
 import { oyYopilganmi } from '@/lib/oyQulfi';
+import { SahifaSarlavhasi, OyTanlash, Ogohlantirish, Korsatkich, BoshHolat, Tugma, Ikonka } from '@/components/ui';
 
 export default function BraklarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
@@ -114,166 +115,94 @@ export default function BraklarSahifasi() {
 
   return (
     <div>
-      
+      <SahifaSarlavhasi
+        sarlavha="Braklar"
+        amallar={
+          <>
+            <Tugma
+              ikonka="yangilash"
+              onClick={bazaniSinxronlash}
+              disabled={yangilanmoqda}
+              aria-label="Yangilash"
+              title="Yangilash"
+              className={`px-0! w-11 md:w-10 ${yangilanmoqda ? '[&_svg]:animate-spin' : ''}`}
+            />
+            <OyTanlash oy={tanlanganOy} ozgartirish={oyniOzgartirish} />
+          </>
+        }
+      />
+
       {yopiq && (
-        <div className="mb-3 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-xs sm:text-sm font-black text-slate-700">
-          🔒 Oy yopilgan — bu oyning braklarini o&apos;zgartirib bo&apos;lmaydi
-        </div>
+        <Ogohlantirish tur="oddiy" className="mb-4">
+          Oy yopilgan — bu oyning braklarini o&apos;zgartirib bo&apos;lmaydi
+        </Ogohlantirish>
       )}
 
-      {/* 1. TEPADAGI PANEL (IKONKALAR BILAN) */}
-      <div className="bg-white px-4 py-3 rounded-2xl shadow-2xs border border-slate-200/80 mb-4 flex justify-between items-center gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h1 className="text-sm sm:text-lg font-black text-slate-900 tracking-tight">Braklar</h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Faqat ikonka bilan yangilash tugmasi */}
-          <button 
-            onClick={bazaniSinxronlash} 
-            disabled={yangilanmoqda} 
-            title="Yangilash"
-            className="w-9 h-9 flex items-center justify-center border border-slate-200 rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-blue-600 transition-all"
-          >
-            <svg className={`w-4 h-4 ${yangilanmoqda ? 'animate-spin text-blue-600' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-
-          <input 
-            type="month" 
-            value={tanlanganOy} 
-            onChange={(e) => oyniOzgartirish(e.target.value)} 
-            className="h-9 border border-slate-200 rounded-xl px-2.5 text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white focus:border-blue-600 outline-none transition-all" 
-          />
-        </div>
+      <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2 md:gap-3 mb-4">
+        <Korsatkich ixcham nomi="Igna" qiymat={<span className="text-xato">{umumiyIgnaMetr}</span>} birlik="m" />
+        <Korsatkich ixcham nomi="Lux" qiymat={<span className="text-diqqat">{umumiyLuxMetr}</span>} birlik="m" />
+        <Korsatkich ixcham nomi="Jarima" qiymat={umumiyJarimaSummasi.toLocaleString('ru-RU')} birlik="so'm" />
       </div>
 
-      {/* 2. ASOSIY JADVAL (USTUNLAR IKONKA VA RANGLI INDIKATORLARDA) */}
-      <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/80 overflow-hidden mb-4">
+      <div className="bg-sirt border border-chiziq rounded-karta overflow-hidden">
         {brakBorOperatorlar.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-xs font-semibold">
-            —
-          </div>
+          <BoshHolat ikonka="tasdiq" sarlavha="Bu oyda brak yo'q" />
         ) : (
-          <div className="w-full overflow-x-auto">
-            <table className="w-full text-left border-collapse table-fixed sm:table-auto">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[10px] sm:text-[11px] uppercase font-black text-slate-500">
-                  <th className="p-2.5 sm:p-3.5 text-center w-[34px] sm:w-14 border-r border-slate-200/70">#</th>
-                  
-                  {/* Operator ustuni ikonkasi */}
-                  <th className="p-2.5 sm:p-3.5 border-r border-slate-200/70 w-[30%] sm:w-auto">
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      <span>Operator</span>
-                    </div>
-                  </th>
+          <table className="w-full table-fixed border-collapse text-sm">
+            <colgroup>
+              <col className="w-8 md:w-12" />
+              <col />
+              <col className="w-[52px] md:w-32" />
+              <col className="w-[52px] md:w-32" />
+              <col className="w-[88px] md:w-44" />
+            </colgroup>
+            <thead>
+              <tr className="bg-sirt-2 border-b border-chiziq text-xs font-semibold text-matn-2">
+                <th className="h-9 text-center font-semibold">№</th>
+                <th className="h-9 px-2 md:px-3 text-left font-semibold">Operator</th>
+                <th className="h-9 text-center font-semibold">Igna</th>
+                <th className="h-9 text-center font-semibold">Lux</th>
+                <th className="h-9 pr-3 text-right font-semibold">Summa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {brakBorOperatorlar.map((item, idx) => {
+                const isTanlangan = tanlanganOperatorId === item.id;
 
-                  {/* Igna ustuni (Qizil nuqta + Igna) */}
-                  <th className="p-2.5 sm:p-3.5 text-center border-r border-slate-200/70 w-[18%] sm:w-40">
-                    <div className="inline-flex items-center justify-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                      <span className="text-red-600">Igna</span>
-                    </div>
-                  </th>
-
-                  {/* Lux ustuni (Ko'k nuqta + Lux) */}
-                  <th className="p-2.5 sm:p-3.5 text-center border-r border-slate-200/70 w-[18%] sm:w-40">
-                    <div className="inline-flex items-center justify-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                      <span className="text-blue-600">Lux</span>
-                    </div>
-                  </th>
-
-                  {/* Jarima ustuni (Hamyon/Pul ikonkasi) */}
-                  <th className="p-2.5 sm:p-3.5 text-right w-[24%] sm:w-48">
-                    <div className="inline-flex items-center justify-end gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>Summa</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs sm:text-sm font-semibold text-slate-800">
-                {brakBorOperatorlar.map((item, idx) => {
-                  const isTanlangan = tanlanganOperatorId === item.id;
-
-                  return (
-                    <tr 
-                      key={item.id} 
+                return (
+                  <React.Fragment key={item.id}>
+                    <tr
                       onClick={() => setTanlanganOperatorId(isTanlangan ? null : item.id)}
-                      className={`cursor-pointer transition-colors ${isTanlangan ? 'bg-blue-50/70' : 'hover:bg-slate-50/80'}`}
+                      className={`h-11 border-b border-chiziq cursor-pointer transition-colors ${isTanlangan ? 'bg-asosiy-och' : 'hover:bg-sirt-2'}`}
                     >
-                      <td className="p-2.5 sm:p-3.5 text-center font-bold text-slate-400 border-r border-slate-100">{idx + 1}</td>
-                      <td className="p-2.5 sm:p-3.5 font-bold border-r border-slate-100 text-slate-900 truncate">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="truncate">{item.ism}</span>
-                          <svg className={`w-3.5 h-3.5 shrink-0 transition-transform ${isTanlangan ? 'rotate-180 text-blue-600' : 'text-slate-400'}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
+                      <td className="text-center text-xs text-matn-3 tabular-nums">{idx + 1}</td>
+                      <td className="px-2 md:px-3">
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className={`truncate font-semibold ${isTanlangan ? 'text-asosiy' : 'text-matn'}`}>{item.ism}</span>
+                          <Ikonka nom="pastga" className={`w-3.5 h-3.5 shrink-0 transition-transform ${isTanlangan ? 'rotate-180 text-asosiy' : 'text-matn-3'}`} />
                         </div>
                       </td>
-                      <td className="p-2.5 sm:p-3.5 text-center border-r border-slate-100 text-red-600 font-black whitespace-nowrap">
+                      <td className={`text-center tabular-nums whitespace-nowrap ${item.jamiIgna > 0 ? 'font-semibold text-xato' : 'text-matn-3'}`}>
                         {item.jamiIgna > 0 ? `${item.jamiIgna} m` : '—'}
                       </td>
-                      <td className="p-2.5 sm:p-3.5 text-center border-r border-slate-100 text-blue-600 font-black whitespace-nowrap">
+                      <td className={`text-center tabular-nums whitespace-nowrap ${item.jamiLux > 0 ? 'font-semibold text-diqqat' : 'text-matn-3'}`}>
                         {item.jamiLux > 0 ? `${item.jamiLux} m` : '—'}
                       </td>
-                      <td className="p-2.5 sm:p-3.5 text-right font-black text-slate-900 whitespace-nowrap">
-                        {item.summa.toLocaleString('ru-RU')}
-                      </td>
+                      <td className="pr-3 text-right font-semibold text-matn tabular-nums whitespace-nowrap">{item.summa.toLocaleString('ru-RU')}</td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    {isTanlangan && (
+                      <tr className="border-b border-chiziq">
+                        <td colSpan={5} className="bg-sirt-2/60 py-2 pr-2 pl-8 md:pl-12">
+                          <BraklarJadvali kunlarMassivi={kunlarMassivi} ishchilarBazasi={tanlanganOperatorlarMassivi} brakMaqomlari={brakMaqomlari} tanlanganOy={tanlanganOy} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         )}
-      </div>
-
-      {/* 3. KUNLIK AQLLI JADVAL */}
-      {tanlanganOperatorlarMassivi.length > 0 && (
-        <BraklarJadvali 
-          kunlarMassivi={kunlarMassivi}
-          ishchilarBazasi={tanlanganOperatorlarMassivi}
-          brakMaqomlari={brakMaqomlari}
-          operatorIsmlari={operatorIsmlari}
-          qiymatniOzgartirish={qiymatniOzgartirish}
-          operatorIsminiOzgartirish={operatorIsminiOzgartirish}
-          operatorBrakHisobi={operatorBrakHisobi}
-          setKunlikJadvalOchiq={() => setTanlanganOperatorId(null)}
-        />
-      )}
-
-      {/* 4. PASTKI UMUMIY PANEL (FAQAT IKONKA VA RAQAMLAR — 0% ORTIQCHA MATN!) */}
-      <div className="bg-white px-4 py-3 rounded-2xl shadow-2xs border border-slate-200/80 flex justify-between items-center gap-2">
-        <div className="flex items-center gap-2 text-xs sm:text-sm font-black">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-600 border border-red-100" title="Jami Igna">
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
-            <span>{umumiyIgnaMetr} m</span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100" title="Jami Lux">
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-            <span>{umumiyLuxMetr} m</span>
-          </div>
-        </div>
-
-        <div className="bg-blue-600 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-white shadow-xs flex items-center gap-2" title="Jami Jarima">
-          <svg className="w-4 h-4 text-blue-200" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-          </svg>
-          <span className="font-black text-xs sm:text-base">{umumiyJarimaSummasi.toLocaleString('ru-RU')} <span className="text-[10px] font-bold text-blue-200">so'm</span></span>
-        </div>
       </div>
     </div>
   );
