@@ -394,7 +394,10 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
                       {yangi ? null : (
                         <input
                           type="text"
-                          inputMode="numeric"
+                          inputMode="text"
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          spellCheck={false}
                           disabled={!kgOchiq}
                           value={q}
                           onChange={(e) => handleNuqsonChange(idx, n, e.target.value)}
