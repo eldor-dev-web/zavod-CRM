@@ -188,7 +188,7 @@ export default function SozlamalarSahifasi() {
           <SonMaydon qiymat={Number(operatorLavozim.stavka) || 0} ozgartirish={handleOperatorStavkaChange} birlik="so'm" aria-label="Operator stavkasi" />
           <span className="w-8 shrink-0" />
         </Qator>
-        <Qator nomi="Qo'shimcha moshina" izoh="Operatorga har moshina uchun">
+        <Qator nomi="Qo'shimcha moshina">
           <SonMaydon qiymat={operatorQoshimcha} ozgartirish={handleOperatorQoshimchaChange} birlik="so'm" aria-label="Qo'shimcha moshina puli" />
           <span className="w-8 shrink-0" />
         </Qator>
