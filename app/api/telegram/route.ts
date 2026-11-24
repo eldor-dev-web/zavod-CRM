@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { oyBraklari } from '@/lib/braklarServer';
 import {
   avansQatorlari,
   ishchiOyligi,
@@ -72,7 +73,8 @@ async function oylikManbalari(oy: string): Promise<OylikManbalari> {
     xotiradanOlish(KALIT.davomat, {}),
     xotiradanOlish(KALIT.lavozimlar, STANDART_LAVOZIMLAR),
     xotiradanOlish<unknown>(KALIT.operatorQoshimcha, STANDART_OPERATOR_QOSHIMCHA),
-    xotiradanOlish(KALIT.brakJadvali(oy), {}),
+    // Braklar smenalardan hisoblanadi (Braklar sahifasi bilan bir xil)
+    oyBraklari(oy).then((b) => b.jadval).catch(() => ({})),
     xotiradanOlish(KALIT.brakStavkalari, STANDART_BRAK_STAVKALARI),
     xotiradanOlish<unknown>(KALIT.eslatmalar(oy), ''),
     xotiradanOlish<SozlamaTarixi>(KALIT.sozlamaTarixi, {})

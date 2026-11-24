@@ -5,6 +5,7 @@ import { ishchiOyligi, faolIshchilar, KALIT, oySozlamasi, STANDART_BRAK_STAVKALA
 import { oqish } from '@/lib/mahalliyXotira';
 import { sanagaKunQoshish, toshkentOy, toshkentSana } from '@/lib/sana';
 import { SahifaSarlavhasi, OyTanlash, Ikonka, cn, oyMatni } from '@/components/ui';
+import { braklarniOlish } from '@/lib/braklarMahalliy';
 
 // Grafik ostidagi oy harflari (telefonda joy tor)
 const OY_HARFI = ['Y', 'F', 'M', 'A', 'M', 'I', 'I', 'A', 'S', 'O', 'N', 'D'];
@@ -129,7 +130,8 @@ export default function AsosiyPanelSahifasi() {
     const manbalar = {
       davomat: oqish(KALIT.davomat, {}),
       ...oySozlama,
-      brakJadvali: oqish(KALIT.brakJadvali(oy), {}),
+      // Braklar smenalardan hisoblanadi (Braklar sahifasi bilan bir xil)
+      brakJadvali: (await braklarniOlish(oy)).jadval,
       eslatmalar: ''
     };
 

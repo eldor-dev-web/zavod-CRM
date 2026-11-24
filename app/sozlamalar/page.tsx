@@ -110,7 +110,7 @@ export default function SozlamalarSahifasi() {
   // Har bir o'zgarish shu oyning sozlamasi sifatida tarixga yoziladi.
   // Shunda o'tgan oylarning oyligi eski stavka/narx bilan hisoblanishda davom etadi.
   const tarixgaYozish = (ozgarish: Partial<OySozlamasi>) => {
-    const eski: OySozlamasi = { lavozimlar, operatorQoshimcha, brakStavkalari };
+    const eski: OySozlamasi = { lavozimlar, operatorQoshimcha, brakStavkalari, brakMeyyori };
     const oy = toshkentOy();
     const yangiTarix = tarixniYangilash(oqish(KALIT.sozlamaTarixi, {}), oy, oldingiOy(oy), eski, { ...eski, ...ozgarish });
     localStorage.setItem(KALIT.sozlamaTarixi, JSON.stringify(yangiTarix));
@@ -166,6 +166,7 @@ export default function SozlamalarSahifasi() {
     const yangi = { ...brakMeyyori, [tur]: num };
     setBrakMeyyori(yangi);
     localStorage.setItem('zavod_brak_meyyori', JSON.stringify(yangi));
+    tarixgaYozish({ brakMeyyori: yangi });
   };
 
   const narxniOzgartirish = (tur: string, qiymat: string) => {

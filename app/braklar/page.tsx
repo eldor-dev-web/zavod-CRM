@@ -4,48 +4,48 @@ import BraklarJadvali from '@/components/BraklarJadvali';
 import { brakHisobi, faolIshchilar, oyKunlariSoni, operatormi, oySozlamasi, KALIT, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, type Ishchi } from '@/lib/hisob';
 import { oqish } from '@/lib/mahalliyXotira';
 import { oyIshchilari } from '@/lib/mahalliyXotira';
-import { toshkentOy, toshkentSana } from '@/lib/sana';
-import { oyYopilganmi } from '@/lib/oyQulfi';
-import { SahifaSarlavhasi, OyTanlash, Korsatkich, BoshHolat, Tugma, Ikonka } from '@/components/ui';
+import { toshkentOy } from '@/lib/sana';
+import { braklarniOlish } from '@/lib/braklarMahalliy';
+import type { BraklarNatijasi, TopilmaganOperator } from '@/lib/braklar';
+import { SahifaSarlavhasi, OyTanlash, Korsatkich, BoshHolat, Tugma, Ikonka, Ogohlantirish } from '@/components/ui';
 
 export default function BraklarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
-  
+
   const [brakStavkalari, setBrakStavkalari] = useState(STANDART_BRAK_STAVKALARI);
 
   const [ishchilarBazasi, setIshchilarBazasi] = useState<Ishchi[]>([]);
   const [brakMaqomlari, setBrakMaqomlari] = useState<Record<string, any>>({});
   const [operatorIsmlari, setOperatorIsmlari] = useState<Record<string, string>>({});
-  
+  const [topilmadi, setTopilmadi] = useState<TopilmaganOperator[]>([]);
+  const [manba, setManba] = useState<BraklarNatijasi['manba']>('smenalar');
+
   const [tanlanganOperatorId, setTanlanganOperatorId] = useState<any | null>(null);
   const [yangilanmoqda, setYangilanmoqda] = useState(false);
-  const [bugun, setBugun] = useState('');
-  // Oy yopilgan (6-sanadan keyin o'tgan oy): braklarni hech kim o'zgartira olmaydi
-  const yopiq = !!tanlanganOy && !!bugun && oyYopilganmi(tanlanganOy, bugun);
 
-  const malumotlarniYuklash = (oy: string) => {
+  // Braklar smenalardan hisoblanadi (serverda; baza ulanmasa — shu qurilmadagi smenalardan)
+  const malumotlarniYuklash = async (oy: string) => {
     const xodimlar = faolIshchilar(oyIshchilari(oy));
     setIshchilarBazasi(xodimlar.filter(operatormi));
 
-    const saqlanganBraklar = localStorage.getItem(KALIT.brakJadvali(oy));
-    if (saqlanganBraklar) {
-      try { setBrakMaqomlari(JSON.parse(saqlanganBraklar)); } catch (e) { setBrakMaqomlari({}); }
-    } else { setBrakMaqomlari({}); }
-
     const saqlanganIsmlar = localStorage.getItem(`zavod_brak_ismlar_${oy}`);
     if (saqlanganIsmlar) {
-      try { setOperatorIsmlari(JSON.parse(saqlanganIsmlar)); } catch (e) { setOperatorIsmlari({}); }
+      try { setOperatorIsmlari(JSON.parse(saqlanganIsmlar)); } catch { setOperatorIsmlari({}); }
     } else { setOperatorIsmlari({}); }
+
+    const natija = await braklarniOlish(oy);
+    setBrakMaqomlari(natija.jadval);
+    setTopilmadi(natija.topilmadi);
+    setManba(natija.manba);
   };
 
   useEffect(() => {
     const hozirgiOy = toshkentOy();
     setTanlanganOy(hozirgiOy);
-    setBugun(toshkentSana());
 
     const saqlanganNarxlar = localStorage.getItem('zavod_brak_stavkalari');
     if (saqlanganNarxlar) {
-      try { setBrakStavkalari(JSON.parse(saqlanganNarxlar)); } catch (e) {}
+      try { setBrakStavkalari(JSON.parse(saqlanganNarxlar)); } catch {}
     }
 
     malumotlarniYuklash(hozirgiOy);
@@ -57,37 +57,17 @@ export default function BraklarSahifasi() {
     malumotlarniYuklash(yangiOy);
   };
 
-  const bazaniSinxronlash = () => {
+  const bazaniSinxronlash = async () => {
     setYangilanmoqda(true);
     const saqlanganNarxlar = localStorage.getItem('zavod_brak_stavkalari');
     if (saqlanganNarxlar) {
-      try { setBrakStavkalari(JSON.parse(saqlanganNarxlar)); } catch (e) {}
+      try { setBrakStavkalari(JSON.parse(saqlanganNarxlar)); } catch {}
     }
-
-    setTimeout(() => {
-      malumotlarniYuklash(tanlanganOy);
-      setYangilanmoqda(false);
-    }, 600);
+    await malumotlarniYuklash(tanlanganOy);
+    setYangilanmoqda(false);
   };
 
   const kunlarMassivi = Array.from({ length: tanlanganOy ? oyKunlariSoni(tanlanganOy) : 30 }, (_, i) => i + 1);
-
-  const qiymatniOzgartirish = (ishchiId: any, kun: number, field: 'igna' | 'lux', val: any) => {
-    if (yopiq) return;
-    const kalit = `${ishchiId}_${kun}`;
-    const current = brakMaqomlari[kalit] || { igna: '', lux: '' };
-    const numVal = val === '' ? '' : Number(String(val).replace(/\D/g, ''));
-    const updated = { ...brakMaqomlari, [kalit]: { igna: current.igna ?? '', lux: current.lux ?? '', [field]: numVal } };
-    setBrakMaqomlari(updated);
-    localStorage.setItem(KALIT.brakJadvali(tanlanganOy), JSON.stringify(updated));
-  };
-
-  const operatorIsminiOzgartirish = (ishchiId: any, yangiIsm: string) => {
-    if (yopiq) return;
-    const updated = { ...operatorIsmlari, [ishchiId]: yangiIsm };
-    setOperatorIsmlari(updated);
-    localStorage.setItem(`zavod_brak_ismlar_${tanlanganOy}`, JSON.stringify(updated));
-  };
 
   // Umumiy hisob faylidan (Telegram bot ham xuddi shunday hisoblaydi)
   const operatorBrakHisobi = (ishchiId: any) => {
@@ -132,6 +112,31 @@ export default function BraklarSahifasi() {
         }
       />
 
+
+      {manba === 'mahalliy' && (
+        <Ogohlantirish tur="diqqat" ikonka="ogohlantirish" className="mb-4">
+          Baza ulanmagan. Braklar shu qurilmadagi smenalardan hisoblandi — to&apos;liq natija baza ulanganda chiqadi.
+        </Ogohlantirish>
+      )}
+
+      {topilmadi.length > 0 && (
+        <Ogohlantirish tur="xato" className="mb-4">
+          <p>
+            {topilmadi.length} ta moshinada operator ro&apos;yxatdan topilmadi — bu braklar hech kimga hisoblanmadi:
+          </p>
+          <ul className="mt-1 space-y-0.5 font-normal">
+            {topilmadi.slice(0, 6).map((t, i) => (
+              <li key={i}>
+                {t.raqam} · {t.sana.slice(8, 10)}.{t.sana.slice(5, 7)} {String(t.smena).toUpperCase().includes('NOCH') ? 'NOCH' : 'DEN'} ·{' '}
+                {t.operator ? `"${t.operator}"` : 'operator yozilmagan'}
+                {t.igna > 0 && ` · igna ${t.igna} m`}
+                {t.lux > 0 && ` · lux ${t.lux} m`}
+              </li>
+            ))}
+            {topilmadi.length > 6 && <li>va yana {topilmadi.length - 6} ta</li>}
+          </ul>
+        </Ogohlantirish>
+      )}
 
       <div className="grid grid-cols-[1fr_1fr_1.4fr] gap-2 md:gap-3 mb-4">
         <Korsatkich ixcham nomi="Igna" qiymat={<span className="text-xato">{umumiyIgnaMetr}</span>} birlik="m" />

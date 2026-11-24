@@ -16,6 +16,8 @@ export type Ishchi = {
 export type Lavozim = { id: number | string; nomi: string; stavka: number | string };
 
 export type BrakStavkalari = { ignaSinigi: number; luxXatosi: number };
+// Brak kechirim me'yori: rulon katagidagi brak shundan kam bo'lsa hisoblanmaydi (metr)
+export type BrakMeyyori = { igna: number; lux: number };
 
 export type DavomatJadvali = Record<string, any>;
 export type BrakJadvali = Record<string, { igna?: number | string; lux?: number | string } | undefined>;
@@ -49,6 +51,7 @@ export type OySozlamasi = {
   lavozimlar: Lavozim[];
   operatorQoshimcha: number;
   brakStavkalari: BrakStavkalari;
+  brakMeyyori?: BrakMeyyori;
 };
 export type SozlamaTarixi = Record<string, Partial<OySozlamasi>>;
 
@@ -71,8 +74,22 @@ export function oySozlamasi(oy: string, joriy: OySozlamasi, tarix: SozlamaTarixi
 export function tarixniYangilash(tarix: SozlamaTarixi | null | undefined, joriyOy: string, oldingiOyKaliti: string, eski: OySozlamasi, yangi: OySozlamasi): SozlamaTarixi {
   const natija: SozlamaTarixi = { ...(tarix || {}) };
   if (!Object.keys(natija).some((k) => k < joriyOy)) natija[oldingiOyKaliti] = eski;
+  // Eski yozuvlarda keyin qo'shilgan sozlama (masalan, brak me'yori) bo'lmasa, uning ESKI qiymati yoziladi —
+  // shunda o'tgan oylar yangi qiymat bilan qayta hisoblanib ketmaydi
+  Object.keys(natija).forEach((k) => {
+    if (k < joriyOy) natija[k] = { ...eski, ...natija[k] };
+  });
   natija[joriyOy] = yangi;
   return natija;
+}
+
+// Berilgan oyda amal qilgan brak me'yori (tarixda bo'lmasa — hozirgi qiymat)
+export function oyMeyyori(oy: string, joriy: BrakMeyyori, tarix: SozlamaTarixi | null | undefined): BrakMeyyori {
+  const oylar = Object.keys(tarix || {}).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
+  if (!tarix || oylar.length === 0) return joriy;
+  const oldingilar = oylar.filter((k) => k <= oy);
+  const m = tarix[oldingilar.length ? oldingilar[oldingilar.length - 1] : oylar[0]]?.brakMeyyori;
+  return m ? { igna: son(m.igna), lux: son(m.lux) } : joriy;
 }
 
 // Bazadagi qiymat ba'zan matn ko'rinishida saqlangan bo'ladi ("[...]"). Uni obyektga aylantiramiz.

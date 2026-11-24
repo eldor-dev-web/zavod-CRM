@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { faolIshchilar, KALIT } from '@/lib/hisob';
-import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { birXilSmena, hozirgiSmena, keyingiSmena, oldingiSmena, smenaQisqa, tahrirlashMumkinmi, tungimi, type SmenaNuqtasi } from '@/lib/smena';
 import { hisobotIdsi, navbatdami, smenaIdsi, smenaMahalliyKaliti, yuborishYokiNavbat } from '@/lib/sinxron';
 import { NUQSON_TURLARI } from '@/lib/arxiv';
@@ -307,78 +305,7 @@ export function useRulonlar() {
     return () => clearInterval(taymer);
   }, [sana, smenaTuri, malumotniQollash]);
 
-  // 5. Rulonlardagi nuqsonlardan operatorlar brakini Braklar jadvaliga avtomatik yozish
-  useEffect(() => {
-    if (!sana || !isInitialized || !tahrirMumkin(sana, smenaTuri)) return;
-    if (yuklanganKalit !== smenaKaliti(sana, smenaTuri)) return; // boshqa smenaning ma'lumoti hali ekranda
-    const joriyYilOy = sana.slice(0, 7);
-    const kun = Number(sana.split('-')[2]);
-    const ishchilarBazasi = faolIshchilar(oyIshchilari(joriyYilOy));
-
-    const meyyorlar = JSON.parse(localStorage.getItem(KALIT.brakMeyyori) || '{"igna": 0, "lux": 0}');
-    const ignaMeyyor = Number(meyyorlar.igna) || 0;
-    const luxMeyyor = Number(meyyorlar.lux) || 0;
-
-    const joriyBraklar: Record<string, { igna: number, lux: number }> = {};
-    
-    Object.values(moshinaMaqotlari).forEach((mData: any) => {
-      let opId = mData.operatorId;
-      if (!opId && mData.operator) {
-        const topilganIshchi = ishchilarBazasi.find((x: any) => x.ism?.toLowerCase().trim() === String(mData.operator).toLowerCase().trim());
-        if (topilganIshchi) opId = topilganIshchi.id;
-      }
-      
-      if (opId && mData.rulonlar && Array.isArray(mData.rulonlar)) {
-        let moshinaIgna = 0, moshinaLux = 0;
-        
-        mData.rulonlar.forEach((rulon: any) => {
-          if (rulon.nuqsonlar) {
-            const ignaKiritilgan = Number(rulon.nuqsonlar["Igna siniq"] || 0);
-            const luxKiritilgan = Number(rulon.nuqsonlar["Lyc xato"] || 0);
-            
-            const haqiqiyIgna = ignaKiritilgan >= ignaMeyyor ? ignaKiritilgan : 0;
-            const haqiqiyLux = luxKiritilgan >= luxMeyyor ? luxKiritilgan : 0;
-
-            moshinaIgna += haqiqiyIgna;
-            moshinaLux += haqiqiyLux;
-          }
-        });
-
-        if (moshinaIgna > 0 || moshinaLux > 0) {
-          const kalit = `${opId}_${kun}`;
-          if (!joriyBraklar[kalit]) joriyBraklar[kalit] = { igna: 0, lux: 0 };
-          joriyBraklar[kalit].igna += moshinaIgna;
-          joriyBraklar[kalit].lux += moshinaLux;
-        }
-      }
-    });
-
-    const shadowKey = `zavod_brak_shadow_${sana}_${smenaTuri}`;
-    const oldingiBraklar = JSON.parse(localStorage.getItem(shadowKey) || '{}');
-    const brakXotiraNomi = KALIT.brakJadvali(joriyYilOy);
-    const brakTable = JSON.parse(localStorage.getItem(brakXotiraNomi) || '{}');
-
-    Object.keys(oldingiBraklar).forEach(kalit => {
-      if (brakTable[kalit]) {
-        brakTable[kalit].igna = Math.max(0, (Number(brakTable[kalit].igna) || 0) - (oldingiBraklar[kalit].igna || 0));
-        brakTable[kalit].lux = Math.max(0, (Number(brakTable[kalit].lux) || 0) - (oldingiBraklar[kalit].lux || 0));
-      }
-    });
-
-    Object.keys(joriyBraklar).forEach(kalit => {
-      if (!brakTable[kalit]) brakTable[kalit] = { igna: '', lux: '' };
-      brakTable[kalit].igna = (Number(brakTable[kalit].igna) || 0) + joriyBraklar[kalit].igna;
-      brakTable[kalit].lux = (Number(brakTable[kalit].lux) || 0) + joriyBraklar[kalit].lux;
-    });
-
-    // Faqat haqiqatan o'zgargan bo'lsa yozamiz (bazaga ortiqcha so'rov ketmasin)
-    const yangiJadval = JSON.stringify(brakTable);
-    const yangiSoya = JSON.stringify(joriyBraklar);
-    if (localStorage.getItem(brakXotiraNomi) !== yangiJadval) localStorage.setItem(brakXotiraNomi, yangiJadval);
-    if (localStorage.getItem(shadowKey) !== yangiSoya) localStorage.setItem(shadowKey, yangiSoya);
-
-    window.dispatchEvent(new Event('braklar_yangilandi'));
-  }, [moshinaMaqotlari, sana, smenaTuri, isInitialized, yuklanganKalit]);
+  // 5. Braklar endi smenalardan serverda hisoblanadi (lib/braklarServer.ts) — bu yerda alohida jadvalga yozilmaydi
 
   const moshinaQoshish = () => {
     const newId = Date.now();
