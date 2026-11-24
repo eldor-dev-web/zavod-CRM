@@ -377,17 +377,12 @@ export default function TexnikXizmatSahifasi() {
             className="w-full bg-transparent text-base md:text-sm font-semibold text-matn outline-none placeholder:font-normal placeholder:text-matn-3"
           />
         </label>
-        <p className="text-xs text-matn-3">
-          Ogohlantirish limitning {OGOHLANTIRISH_FOIZI}% ida chiqadi · kun = moshina ishlagan kunlar
+        
           {holatFiltr && (
-            <>
-              {' · '}
               <button type="button" onClick={() => setHolatFiltr(null)} className="font-semibold text-asosiy hover:underline">
                 Hammasini ko&apos;rsatish
               </button>
-            </>
           )}
-        </p>
       </div>
 
       {/* MOSHINALAR RO'YXATI */}
