@@ -1,22 +1,23 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { Tugma, Ikonka, xabarBer } from '@/components/ui';
 
 type Pinlar = { admin: string; master: string; kontrolchi: string; mexanik: string };
 
 const MAYDONLAR: { kalit: keyof Pinlar; nomi: string }[] = [
-  { kalit: 'admin', nomi: 'Boshqaruvchi (admin)' },
-  { kalit: 'master', nomi: 'Smena masteri' },
+  { kalit: 'admin', nomi: 'Admin' },
+  { kalit: 'master', nomi: 'Master' },
   { kalit: 'kontrolchi', nomi: 'Kontrolchi' },
   { kalit: 'mexanik', nomi: 'Mexanik' }
 ];
 
-// Sozlamalar sahifasidagi "PIN-kodlar" bo'limi (faqat admin). PIN-kodlar faqat serverda saqlanadi.
+// Sozlamalar sahifasidagi "Xavfsizlik · PIN-kodlar" bo'limi (faqat admin). PIN-kodlar faqat serverda saqlanadi.
 export default function PinKodlar() {
   const [pinlar, setPinlar] = useState<Pinlar>({ admin: '', master: '', kontrolchi: '', mexanik: '' });
   const [yuklandi, setYuklandi] = useState(false);
   const [xato, setXato] = useState('');
   const [saqlanmoqda, setSaqlanmoqda] = useState(false);
-  const [saqlandi, setSaqlandi] = useState(false);
+  const [korinadi, setKorinadi] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -34,7 +35,6 @@ export default function PinKodlar() {
 
   const saqlash = async () => {
     setXato('');
-    setSaqlandi(false);
     const qiymatlar = Object.values(pinlar);
     if (!qiymatlar.every((p) => /^\d{6}$/.test(p))) return setXato('Har bir PIN-kod aynan 6 ta raqam bo\'lishi kerak');
     if (new Set(qiymatlar).size !== 4) return setXato('PIN-kodlar bir-biridan farq qilishi kerak');
@@ -48,8 +48,8 @@ export default function PinKodlar() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) return setXato(d.xato || 'Saqlab bo\'lmadi');
-      setSaqlandi(true);
-      setTimeout(() => setSaqlandi(false), 2500);
+      xabarBer('PIN-kodlar saqlandi');
+      setKorinadi(false);
     } catch {
       setXato('Serverga ulanib bo\'lmadi');
     } finally {
@@ -58,43 +58,48 @@ export default function PinKodlar() {
   };
 
   return (
-    <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-      <h2 className="text-base font-black text-gray-800 mb-1 flex items-center gap-2">
-        <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-        </svg>
-        PIN-kodlar
-      </h2>
-      <p className="text-xs text-gray-500 font-medium mb-4 pb-3 border-b border-gray-100">Har bir rol uchun 6 xonali kirish kodi. Hammasi har xil bo&apos;lishi kerak.</p>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+    <section className="mb-6">
+      <h2 className="mb-2 px-1 text-sm font-semibold text-matn-2">Xavfsizlik · PIN-kodlar</h2>
+      <div className="overflow-hidden rounded-karta border border-chiziq bg-sirt divide-y divide-chiziq">
         {MAYDONLAR.map((m) => (
-          <label key={m.kalit} className="block">
-            <span className="text-xs font-bold text-gray-600 block mb-1">{m.nomi}</span>
+          <label key={m.kalit} className="flex min-h-14 items-center gap-3 px-3 md:px-4 py-2">
+            <span className="flex-1 text-[15px] text-matn">{m.nomi}</span>
             <input
-              type="text"
+              type={korinadi ? 'text' : 'password'}
               inputMode="numeric"
-              autoComplete="off"
+              autoComplete="new-password"
               maxLength={6}
               disabled={!yuklandi}
               value={pinlar[m.kalit]}
-              onChange={(e) => setPinlar({ ...pinlar, [m.kalit]: e.target.value.replace(/\D/g, '') })}
-              className="w-full h-11 px-3 rounded-lg border border-gray-300 font-black text-base tracking-[0.3em] text-gray-900 outline-none focus:border-indigo-500 disabled:bg-gray-50"
+              onChange={(e) => {
+                setPinlar({ ...pinlar, [m.kalit]: e.target.value.replace(/\D/g, '') });
+                setXato('');
+              }}
+              aria-label={`${m.nomi} PIN-kodi`}
+              className="h-10 w-32 shrink-0 rounded-boshqaruv border border-chiziq-2 bg-sirt text-center text-base font-semibold tracking-[0.3em] text-matn tabular-nums outline-none focus:border-asosiy focus:ring-2 focus:ring-asosiy/20 disabled:bg-sirt-2"
             />
           </label>
         ))}
+        <div className="flex items-center justify-between gap-3 px-3 md:px-4 py-2.5">
+          <button
+            type="button"
+            onClick={() => setKorinadi(!korinadi)}
+            className="inline-flex items-center gap-1.5 text-sm text-matn-2 hover:text-matn"
+            aria-pressed={korinadi}
+          >
+            <Ikonka nom={korinadi ? 'yopish' : 'qidirish'} className="w-4 h-4" />
+            {korinadi ? 'Yashirish' : "Ko'rsatish"}
+          </button>
+          <Tugma kichik tur="asosiy" onClick={saqlash} yuklanmoqda={saqlanmoqda} disabled={!yuklandi}>
+            Saqlash
+          </Tugma>
+        </div>
       </div>
-
-      {xato && <p className="mb-3 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold">{xato}</p>}
-
-      <button
-        type="button"
-        onClick={saqlash}
-        disabled={saqlanmoqda || !yuklandi}
-        className="w-full sm:w-auto h-11 px-6 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-black text-sm transition"
-      >
-        {saqlandi ? '✓ Saqlandi' : saqlanmoqda ? 'Saqlanmoqda...' : 'PIN-kodlarni saqlash'}
-      </button>
-    </div>
+      {xato ? (
+        <p className="mt-1.5 px-1 text-xs font-semibold text-xato">{xato}</p>
+      ) : (
+        <p className="mt-1.5 px-1 text-xs text-matn-3">6 xonali, hammasi har xil</p>
+      )}
+    </section>
   );
 }

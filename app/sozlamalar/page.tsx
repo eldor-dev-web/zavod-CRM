@@ -5,15 +5,66 @@ import { oqish } from '@/lib/mahalliyXotira';
 import { oldingiOy, toshkentOy } from '@/lib/sana';
 import { MOSHINA_KALIT, moshinalarSoni } from '@/lib/moshina';
 import PinKodlar from '@/components/PinKodlar';
+import { SahifaSarlavhasi, Oyna, Maydon, Tugma, Ikonka, xabarBer, tasdiqla } from '@/components/ui';
+
+// Bo'lim: kichik sarlavha + guruh (qatorlar)
+function Bolim({ sarlavha, izoh, children }: { sarlavha: string; izoh?: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-6">
+      <h2 className="mb-2 px-1 text-sm font-semibold text-matn-2">{sarlavha}</h2>
+      <div className="overflow-hidden rounded-karta border border-chiziq bg-sirt divide-y divide-chiziq">{children}</div>
+      {izoh && <p className="mt-1.5 px-1 text-xs text-matn-3">{izoh}</p>}
+    </section>
+  );
+}
+
+// Qator: chapda nomi (+izoh), o'ngda boshqaruv
+function Qator({ nomi, izoh, belgi, children }: { nomi: React.ReactNode; izoh?: string; belgi?: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex min-h-14 items-center gap-3 px-3 md:px-4 py-2">
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] text-matn">
+          {nomi}
+          {belgi && <span className="ml-2 rounded-full bg-sirt-2 px-2 py-0.5 text-[11px] font-semibold text-matn-2 align-middle">{belgi}</span>}
+        </p>
+        {izoh && <p className="text-xs text-matn-3">{izoh}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Raqam maydoni: "175 000" ko'rinishida, o'ngda birlik
+function SonMaydon({
+  qiymat,
+  ozgartirish,
+  birlik,
+  kenglik = 'w-32',
+  ...qolgan
+}: { qiymat: number; ozgartirish: (n: number) => void; birlik?: string; kenglik?: string } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+  return (
+    <label className={`flex h-10 shrink-0 items-center gap-1 rounded-boshqaruv border border-chiziq-2 bg-sirt px-2.5 focus-within:border-asosiy focus-within:ring-2 focus-within:ring-asosiy/20 ${kenglik}`}>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={qiymat ? qiymat.toLocaleString('ru-RU') : '0'}
+        onChange={(e) => ozgartirish(Number(e.target.value.replace(/\D/g, '').slice(0, 9)) || 0)}
+        className="w-full min-w-0 bg-transparent text-right text-base md:text-sm font-semibold text-matn tabular-nums outline-none"
+        {...qolgan}
+      />
+      {birlik && <span className="shrink-0 text-xs text-matn-3">{birlik}</span>}
+    </label>
+  );
+}
 
 export default function SozlamalarSahifasi() {
   const [operatorQoshimcha, setOperatorQoshimcha] = useState<number>(STANDART_OPERATOR_QOSHIMCHA);
   const [lavozimlar, setLavozimlar] = useState<any[]>([]);
   const [yangiLavozimNomi, setYangiLavozimNomi] = useState('');
   const [yangiStavka, setYangiStavka] = useState('');
+  const [lavozimOynasi, setLavozimOynasi] = useState(false);
+  const [lavozimXato, setLavozimXato] = useState('');
   const [brakMeyyori, setBrakMeyyori] = useState({ igna: 0, lux: 0 });
-  
-  // 🚀 YANGI: Jarima narxlarini boshqarish state'i
   const [brakStavkalari, setBrakStavkalari] = useState(STANDART_BRAK_STAVKALARI);
   const [moshinaSoni, setMoshinaSoni] = useState('35');
 
@@ -26,24 +77,33 @@ export default function SozlamalarSahifasi() {
     let boshlangichLavozimlar: any[] = STANDART_LAVOZIMLAR;
 
     if (saqlanganLavozimlar) {
-      try { 
+      try {
         const parsed = JSON.parse(saqlanganLavozimlar);
         const hasOperator = parsed.some((l: any) => l.nomi.toLowerCase() === 'operator');
         if (!hasOperator) parsed.unshift({ id: 0, nomi: 'Operator', stavka: 175000 });
         boshlangichLavozimlar = parsed;
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     }
     setLavozimlar(boshlangichLavozimlar);
 
     const saqlanganMeyyor = localStorage.getItem('zavod_brak_meyyori');
     if (saqlanganMeyyor) {
-      try { setBrakMeyyori(JSON.parse(saqlanganMeyyor)); } catch (e) { console.error(e); }
+      try {
+        setBrakMeyyori(JSON.parse(saqlanganMeyyor));
+      } catch (e) {
+        console.error(e);
+      }
     }
 
-    // 🚀 YANGI: Jarima narxlarini o'qib olish
     const saqlanganNarxlar = localStorage.getItem('zavod_brak_stavkalari');
     if (saqlanganNarxlar) {
-      try { setBrakStavkalari(JSON.parse(saqlanganNarxlar)); } catch (e) { console.error(e); }
+      try {
+        setBrakStavkalari(JSON.parse(saqlanganNarxlar));
+      } catch (e) {
+        console.error(e);
+      }
     }
   }, []);
 
@@ -69,25 +129,36 @@ export default function SozlamalarSahifasi() {
   };
 
   const handleOperatorStavkaChange = (yangiStavka: number) => {
-    const yangi = lavozimlar.map(l => l.nomi.toLowerCase() === 'operator' ? { ...l, stavka: yangiStavka } : l);
+    const yangi = lavozimlar.map((l) => (l.nomi.toLowerCase() === 'operator' ? { ...l, stavka: yangiStavka } : l));
     lavozimniSaqlash(yangi);
+  };
+
+  const lavozimOynasiniOchish = () => {
+    setYangiLavozimNomi('');
+    setYangiStavka('');
+    setLavozimXato('');
+    setLavozimOynasi(true);
   };
 
   const yangiLavozimQoshish = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!yangiLavozimNomi.trim() || !yangiStavka) return;
-    if (yangiLavozimNomi.trim().toLowerCase() === 'operator') {
-      alert("⚠️ 'Operator' lavozimi tizimda qat'iy belgilangan. Uni qayta qo'sha olmaysiz!");
-      setYangiLavozimNomi(''); return;
+    const nomi = yangiLavozimNomi.trim();
+    const stavka = Number(yangiStavka.replace(/\D/g, ''));
+    if (!nomi) return setLavozimXato('Lavozim nomini yozing');
+    if (!stavka) return setLavozimXato('Smena stavkasini yozing');
+    if (nomi.toLowerCase() === 'operator') {
+      xabarBer("'Operator' lavozimi tizimda bor — uni qayta qo'shib bo'lmaydi", 'xato');
+      setYangiLavozimNomi('');
+      return;
     }
-    const yangi = { id: Date.now(), nomi: yangiLavozimNomi.trim(), stavka: Number(yangiStavka) };
-    lavozimniSaqlash([...lavozimlar, yangi]);
-    setYangiLavozimNomi(''); setYangiStavka('');
+    lavozimniSaqlash([...lavozimlar, { id: Date.now(), nomi, stavka }]);
+    setLavozimOynasi(false);
   };
 
-  const lavozimniOchirish = (id: number, nomi: string) => {
-    if (!window.confirm(`Rostdan ham "${nomi}" lavozimini o'chirib tashlamoqchimisiz?`)) return;
-    lavozimniSaqlash(lavozimlar.filter(l => l.id !== id));
+  const lavozimniOchirish = async (id: number, nomi: string) => {
+    const ha = await tasdiqla({ sarlavha: `"${nomi}" lavozimini o'chirasizmi?`, tasdiqMatni: "O'chirish", xavfli: true });
+    if (!ha) return;
+    lavozimniSaqlash(lavozimlar.filter((l) => l.id !== id));
   };
 
   const meyyorniOzgartirish = (tur: string, qiymat: string) => {
@@ -97,7 +168,6 @@ export default function SozlamalarSahifasi() {
     localStorage.setItem('zavod_brak_meyyori', JSON.stringify(yangi));
   };
 
-  // 🚀 YANGI: Jarima narxlarini saqlash funksiyasi
   const narxniOzgartirish = (tur: string, qiymat: string) => {
     const num = Number(qiymat.replace(/\D/g, '')) || 0;
     const yangi = { ...brakStavkalari, [tur]: num };
@@ -106,127 +176,126 @@ export default function SozlamalarSahifasi() {
     tarixgaYozish({ brakStavkalari: yangi });
   };
 
-  const operatorLavozim = lavozimlar.find(l => l.nomi.toLowerCase() === 'operator') || { id: 0, nomi: 'Operator', stavka: 175000 };
-  const qolganLavozimlar = lavozimlar.filter(l => l.nomi.toLowerCase() !== 'operator');
+  const operatorLavozim = lavozimlar.find((l) => l.nomi.toLowerCase() === 'operator') || { id: 0, nomi: 'Operator', stavka: 175000 };
+  const qolganLavozimlar = lavozimlar.filter((l) => l.nomi.toLowerCase() !== 'operator');
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Zavod Sozlamalari (Nastroyka)</h1>
-          <p className="text-xs font-semibold text-gray-500 mt-1">O&apos;zgarishlar shu oydan boshlab amal qiladi — o&apos;tgan oylarning oyligi eski sozlama bilan qoladi</p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-2xl">
+      <SahifaSarlavhasi sarlavha="Sozlamalar" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* CHAP TOMON: LAVOZIMLAR VA STAVKALAR */}
-        <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-base font-black text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-            <span>👔</span> Lavozimlar va Stavkalarni Boshqarish
-          </h2>
-          <form onSubmit={yangiLavozimQoshish} className="flex flex-col sm:flex-row gap-2 mb-6">
-            <input type="text" placeholder="Yangi lavozim" value={yangiLavozimNomi} onChange={(e) => setYangiLavozimNomi(e.target.value)} className="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 outline-none focus:bg-white focus:border-blue-500 font-semibold" />
-            <input type="number" placeholder="Smena puli (so'm)" value={yangiStavka} onChange={(e) => setYangiStavka(e.target.value)} className="w-full sm:w-44 p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 outline-none focus:bg-white focus:border-blue-500 font-semibold" />
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-all active:scale-95 whitespace-nowrap">✓</button>
-          </form>
+      <Bolim sarlavha="Ish haqi · smena uchun" izoh="Shu oydan amal qiladi">
+        <Qator nomi="Operator" belgi="Tizim">
+          <SonMaydon qiymat={Number(operatorLavozim.stavka) || 0} ozgartirish={handleOperatorStavkaChange} birlik="so'm" aria-label="Operator stavkasi" />
+          <span className="w-8 shrink-0" />
+        </Qator>
+        <Qator nomi="Qo'shimcha moshina" izoh="Operatorga har moshina uchun">
+          <SonMaydon qiymat={operatorQoshimcha} ozgartirish={handleOperatorQoshimchaChange} birlik="so'm" aria-label="Qo'shimcha moshina puli" />
+          <span className="w-8 shrink-0" />
+        </Qator>
+        {qolganLavozimlar.map((lavozim) => (
+          <Qator key={lavozim.id} nomi={lavozim.nomi}>
+            <SonMaydon
+              qiymat={Number(lavozim.stavka) || 0}
+              ozgartirish={(val) => lavozimniSaqlash(lavozimlar.map((l) => (l.id === lavozim.id ? { ...l, stavka: val } : l)))}
+              birlik="so'm"
+              aria-label={`${lavozim.nomi} stavkasi`}
+            />
+            <button
+              type="button"
+              onClick={() => lavozimniOchirish(lavozim.id, lavozim.nomi)}
+              aria-label={`${lavozim.nomi} lavozimini o'chirish`}
+              title="O'chirish"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-boshqaruv text-matn-3 transition-colors hover:bg-xato-och hover:text-xato"
+            >
+              <Ikonka nom="ochirish" className="w-4 h-4" />
+            </button>
+          </Qator>
+        ))}
+        <button
+          type="button"
+          onClick={lavozimOynasiniOchish}
+          className="flex min-h-12 w-full items-center gap-2 px-3 md:px-4 text-[15px] font-medium text-asosiy transition-colors hover:bg-sirt-2"
+        >
+          <Ikonka nom="qoshish" className="w-4 h-4" />
+          Lavozim qo&apos;shish
+        </button>
+      </Bolim>
 
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-100 border-b border-gray-200 text-xs uppercase font-black text-gray-700">
-                  <th className="p-3 border-r border-gray-200">Lavozim</th>
-                  <th className="p-3 border-r border-gray-200 text-right w-48">Smena Stavkasi</th>
-                  <th className="p-3 text-center w-20">🎛️</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                <tr className="bg-blue-50/50 hover:bg-blue-50">
-                  <td className="p-3 font-semibold text-gray-800 border-r border-gray-200 flex items-center gap-2"><span className="text-blue-600 font-bold">⭐</span> Qo'shimcha moshina</td>
-                  <td className="p-2 text-right border-r border-gray-200"><input type="number" value={operatorQoshimcha} onChange={(e) => handleOperatorQoshimchaChange(Number(e.target.value))} className="w-full p-1.5 border border-gray-300 rounded text-right font-black text-blue-700 bg-white outline-none focus:border-blue-500" /></td>
-                  <td className="p-3 text-center text-xs text-gray-400 font-semibold">⚙️</td>
-                </tr>
-                <tr className="bg-emerald-50/40 hover:bg-emerald-50/70">
-                  <td className="p-3 font-black text-gray-900 border-r border-gray-200"> 👤 Operator</td>
-                  <td className="p-2 text-right border-r border-gray-200"><input type="number" value={operatorLavozim.stavka} onChange={(e) => handleOperatorStavkaChange(Number(e.target.value))} className="w-full p-1.5 border border-gray-300 rounded text-right font-black text-emerald-700 bg-white focus:bg-white focus:border-emerald-500 outline-none" /></td>
-                  <td className="p-3 text-center text-xs text-gray-400 font-semibold">👤</td>
-                </tr>
-                {qolganLavozimlar.map((lavozim) => (
-                  <tr key={lavozim.id} className="hover:bg-gray-50">
-                    <td className="p-3 font-semibold text-gray-800 border-r border-gray-200">{lavozim.nomi}</td>
-                    <td className="p-2 text-right border-r border-gray-200"><input type="number" value={lavozim.stavka} onChange={(e) => { const val = Number(e.target.value); lavozimniSaqlash(lavozimlar.map(l => l.id === lavozim.id ? { ...l, stavka: val } : l)); }} className="w-full p-1.5 border border-gray-300 rounded text-right font-black text-gray-700 bg-gray-50 focus:bg-white focus:border-blue-500 outline-none" /></td>
-                    <td className="p-3 text-center"><button onClick={() => lavozimniOchirish(lavozim.id, lavozim.nomi)} className="text-red-500 hover:text-red-700 font-bold p-1 rounded hover:bg-red-50 transition-all" title="O'chirish">✕</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <Bolim sarlavha="Brak">
+        <Qator nomi="Igna siniq" izoh="Jarima, 1 metr">
+          <SonMaydon qiymat={Number(brakStavkalari.ignaSinigi) || 0} ozgartirish={(n) => narxniOzgartirish('ignaSinigi', String(n))} birlik="so'm" aria-label="Igna siniq jarimasi" />
+        </Qator>
+        <Qator nomi="Lux xato" izoh="Jarima, 1 metr">
+          <SonMaydon qiymat={Number(brakStavkalari.luxXatosi) || 0} ozgartirish={(n) => narxniOzgartirish('luxXatosi', String(n))} birlik="so'm" aria-label="Lux xato jarimasi" />
+        </Qator>
+        <Qator nomi="Igna me'yori">
+          <SonMaydon qiymat={Number(brakMeyyori.igna) || 0} ozgartirish={(n) => meyyorniOzgartirish('igna', String(n))} birlik="m" aria-label="Igna me'yori" />
+        </Qator>
+        <Qator nomi="Lux me'yori">
+          <SonMaydon qiymat={Number(brakMeyyori.lux) || 0} ozgartirish={(n) => meyyorniOzgartirish('lux', String(n))} birlik="m" aria-label="Lux me'yori" />
+        </Qator>
+      </Bolim>
 
-        {/* O'NG TOMON: SIFAT NAZORATI SOZLAMALARI */}
-        <div className="flex flex-col gap-6">
-          
-          {/* 1. BRAK JARIMA NARXLARI (YANGI KO'CHIRILDI) */}
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <h2 className="text-base font-black text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
-              <span>💰</span> Brak Jarima Narxlari
-            </h2>
-            <div className="space-y-4">
-              <div className="p-4 border border-gray-200 rounded-xl bg-red-50/50">
-                <label className="block text-xs font-bold text-red-600 uppercase mb-2">Igna sinig'i narxi (m)</label>
-                <input type="text" value={brakStavkalari.ignaSinigi} onChange={(e) => narxniOzgartirish('ignaSinigi', e.target.value)} className="w-full p-2.5 border border-red-200 rounded-lg font-black text-red-700 outline-none focus:border-red-500 focus:bg-white transition-all text-right text-lg shadow-sm" placeholder="0" />
-              </div>
-              <div className="p-4 border border-gray-200 rounded-xl bg-blue-50/50">
-                <label className="block text-xs font-bold text-blue-600 uppercase mb-2">Lux xatosi narxi (m)</label>
-                <input type="text" value={brakStavkalari.luxXatosi} onChange={(e) => narxniOzgartirish('luxXatosi', e.target.value)} className="w-full p-2.5 border border-blue-200 rounded-lg font-black text-blue-700 outline-none focus:border-blue-500 focus:bg-white transition-all text-right text-lg shadow-sm" placeholder="0" />
-              </div>
-            </div>
-          </div>
+      <Bolim sarlavha="Ishlab chiqarish">
+        <Qator nomi="Moshinalar soni" izoh={`MK-1 dan MK-${moshinalarSoni(moshinaSoni)} gacha`}>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={moshinaSoni}
+            aria-label="Moshinalar soni"
+            onChange={(e) => setMoshinaSoni(e.target.value.replace(/\D/g, '').slice(0, 3))}
+            onBlur={() => {
+              const n = moshinalarSoni(moshinaSoni);
+              setMoshinaSoni(String(n));
+              localStorage.setItem(MOSHINA_KALIT.soni, String(n));
+            }}
+            className="h-10 w-20 shrink-0 rounded-boshqaruv border border-chiziq-2 bg-sirt text-center text-base md:text-sm font-semibold text-matn tabular-nums outline-none focus:border-asosiy focus:ring-2 focus:ring-asosiy/20"
+          />
+        </Qator>
+      </Bolim>
 
-          {/* MOSHINALAR SONI (Texnik xizmat va Rulonlar uchun) */}
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <h2 className="text-base font-black text-gray-800 mb-2 pb-2 border-b border-gray-100 flex items-center gap-2">
-              <span>🏭</span> Moshinalar soni
-            </h2>
-            <div className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex justify-between items-center gap-3">
-              <span className="text-xs font-bold text-gray-600">MK-1 dan MK-{moshinalarSoni(moshinaSoni)} gacha</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={moshinaSoni}
-                onChange={(e) => setMoshinaSoni(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                onBlur={() => {
-                  const n = moshinalarSoni(moshinaSoni);
-                  setMoshinaSoni(String(n));
-                  localStorage.setItem(MOSHINA_KALIT.soni, String(n));
-                }}
-                className="w-20 p-2 border border-gray-300 rounded-lg font-black text-gray-800 outline-none focus:border-indigo-500 text-center"
-              />
-            </div>
-          </div>
+      <PinKodlar />
 
-          {/* 2. KECHIRIM ME'YORI */}
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <h2 className="text-base font-black text-gray-800 mb-2 pb-2 border-b border-gray-100 flex items-center gap-2">
-              <span>🛡️</span> Brak Kechirim Me'yori
-            </h2>
-            <div className="space-y-4">
-              <div className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-600 uppercase">Igna me'yori (m)</span>
-                <input type="text" value={brakMeyyori.igna} onChange={(e) => meyyorniOzgartirish('igna', e.target.value)} className="w-20 p-2 border border-gray-300 rounded-lg font-black text-red-600 outline-none focus:border-red-500 text-center" placeholder="0" />
-              </div>
-              <div className="p-3 border border-gray-200 rounded-xl bg-gray-50/50 flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-600 uppercase">Lux me'yori (m)</span>
-                <input type="text" value={brakMeyyori.lux} onChange={(e) => meyyorniOzgartirish('lux', e.target.value)} className="w-20 p-2 border border-gray-300 rounded-lg font-black text-blue-600 outline-none focus:border-blue-500 text-center" placeholder="0" />
-              </div>
-            </div>
-          </div>
-
-          {/* 3. PIN-KODLAR (Sidebar'dan shu yerga ko'chirildi) */}
-          <PinKodlar />
-
-        </div>
-      </div>
+      {/* LAVOZIM QO'SHISH OYNASI */}
+      <Oyna
+        ochiq={lavozimOynasi}
+        yopish={() => setLavozimOynasi(false)}
+        sarlavha="Yangi lavozim"
+        kenglik="max-w-sm"
+        amallar={
+          <>
+            <Tugma onClick={() => setLavozimOynasi(false)}>Bekor qilish</Tugma>
+            <Tugma type="submit" form="lavozim-forma" tur="asosiy">
+              Qo&apos;shish
+            </Tugma>
+          </>
+        }
+      >
+        <form id="lavozim-forma" onSubmit={yangiLavozimQoshish} className="space-y-4">
+          <Maydon
+            yorliq="Lavozim nomi"
+            autoFocus
+            value={yangiLavozimNomi}
+            onChange={(e) => {
+              setYangiLavozimNomi(e.target.value);
+              setLavozimXato('');
+            }}
+            placeholder="Masalan: Kontrolchi"
+          />
+          <Maydon
+            yorliq="Smena stavkasi, so'm"
+            inputMode="numeric"
+            value={yangiStavka}
+            onChange={(e) => {
+              const r = e.target.value.replace(/\D/g, '').slice(0, 9);
+              setYangiStavka(r ? Number(r).toLocaleString('ru-RU') : '');
+              setLavozimXato('');
+            }}
+            placeholder="160 000"
+            xato={lavozimXato || undefined}
+          />
+        </form>
+      </Oyna>
     </div>
   );
 }
