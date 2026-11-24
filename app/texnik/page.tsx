@@ -20,8 +20,10 @@ import {
 } from '@/lib/moshina';
 import { oqish } from '@/lib/mahalliyXotira';
 import { toshkentVaqtMatni } from '@/lib/sana';
+import { SahifaSarlavhasi, Ogohlantirish, BoshHolat, Oyna, Maydon, Tugma, Ikonka, cn } from '@/components/ui';
 
 type Tur = 'kg' | 'kun';
+type Holat = LimitHolati['holat'];
 
 const sonFormat = (n: number) => Math.round(n).toLocaleString('ru-RU');
 const sanaKorinishi = (s: string) => (s ? `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}` : '');
@@ -44,12 +46,14 @@ function mahalliySmenalar() {
   return royxat;
 }
 
-const HOLAT_RANGI: Record<LimitHolati['holat'], { chiziq: string; matn: string; karta: string }> = {
-  yoq: { chiziq: 'bg-slate-300', matn: 'text-slate-400', karta: 'border-slate-200' },
-  yaxshi: { chiziq: 'bg-emerald-500', matn: 'text-emerald-700', karta: 'border-slate-200' },
-  yaqin: { chiziq: 'bg-amber-500', matn: 'text-amber-700', karta: 'border-amber-300 ring-2 ring-amber-100' },
-  oshdi: { chiziq: 'bg-rose-500', matn: 'text-rose-700', karta: 'border-rose-300 ring-2 ring-rose-100' }
+// Holat ranglari: faqat ma'no uchun (qizil — oshdi, sariq — yaqin, yashil — joyida, kulrang — limit yo'q)
+const HOLAT: Record<Holat, { nomi: string; nuqta: string; chiziq: string; matn: string; fon: string; belgi: string }> = {
+  oshdi: { nomi: 'Limitdan oshgan', nuqta: 'bg-xato-fon', chiziq: 'bg-xato-fon', matn: 'text-xato', fon: 'bg-xato-och', belgi: 'bg-xato-och text-xato' },
+  yaqin: { nomi: 'Yaqinlashgan', nuqta: 'bg-den', chiziq: 'bg-den', matn: 'text-diqqat', fon: 'bg-diqqat-och', belgi: 'bg-diqqat-och text-diqqat' },
+  yaxshi: { nomi: 'Joyida', nuqta: 'bg-yaxshi', chiziq: 'bg-yaxshi', matn: 'text-yaxshi', fon: 'bg-yaxshi-och', belgi: 'bg-yaxshi-och text-yaxshi' },
+  yoq: { nomi: 'Limitsiz', nuqta: 'bg-chiziq-2', chiziq: 'bg-chiziq-2', matn: 'text-matn-3', fon: 'bg-sirt', belgi: 'bg-sirt-2 text-matn-2' }
 };
+const HOLAT_TARTIBI: Holat[] = ['oshdi', 'yaqin', 'yaxshi', 'yoq'];
 
 // "limitga 150 kg qoldi" / "limitdan 2 kun oshdi"
 function holatMatni(h: LimitHolati, tur: Tur) {
@@ -61,8 +65,19 @@ function holatMatni(h: LimitHolati, tur: Tur) {
 
 const ogohlantirishmi = (h: LimitHolati) => h.holat === 'yaqin' || h.holat === 'oshdi';
 
-const turNomi = (y: HisoblagichYozuvi) =>
-  !y.tur || y.tur === 'ikkalasi' ? 'Kg va kun hisoblagichi' : y.tur === 'kg' ? 'Kg hisoblagichi' : 'Kun hisoblagichi';
+const turNomi = (y: HisoblagichYozuvi) => (!y.tur || y.tur === 'ikkalasi' ? 'Kg va kun' : y.tur === 'kg' ? 'Kg' : 'Kun');
+
+// Ro'yxatdagi ingichka chiziq (kg yoki kun)
+function Chiziq({ yorliq, h }: { yorliq: string; h: LimitHolati }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-6 shrink-0 text-[11px] text-matn-3">{yorliq}</span>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-sirt-2">
+        {h.holat !== 'yoq' && <div className={cn('h-full rounded-full', HOLAT[h.holat].chiziq)} style={{ width: `${Math.min(100, h.foiz)}%` }} />}
+      </div>
+    </div>
+  );
+}
 
 export default function TexnikXizmatSahifasi() {
   const [maks, setMaks] = useState(35);
@@ -71,17 +86,17 @@ export default function TexnikXizmatSahifasi() {
   const [hisoblar, setHisoblar] = useState<Record<number, MoshinaHisobi>>({});
   const [yuklanmoqda, setYuklanmoqda] = useState(true);
   const [manba, setManba] = useState<'baza' | 'mahalliy'>('baza');
-  const [filtr, setFiltr] = useState<'hammasi' | 'ogohlantirish'>('hammasi');
+  const [holatFiltr, setHolatFiltr] = useState<Holat | null>(null);
   const [qidiruv, setQidiruv] = useState('');
-  const [tarixOchiq, setTarixOchiq] = useState<number | null>(null);
+  const [ochiqMoshina, setOchiqMoshina] = useState<number | null>(null);
 
-  // Hisoblagichni yangilash oynasi
+  // Hisoblagichni yangilash (moshina oynasi ichida)
   const [yangilanadigan, setYangilanadigan] = useState<number | null>(null);
   const [tanlanganTurlar, setTanlanganTurlar] = useState<Set<Tur>>(new Set());
   const [mexanikIsmi, setMexanikIsmi] = useState('');
   const [xato, setXato] = useState('');
 
-  // "Hammasiga bir xil limit" oynasi
+  // "Umumiy limit" oynasi
   const [ommaviyOchiq, setOmmaviyOchiq] = useState(false);
   const [ommaviyKg, setOmmaviyKg] = useState('');
   const [ommaviyKun, setOmmaviyKun] = useState('');
@@ -129,13 +144,16 @@ export default function TexnikXizmatSahifasi() {
       const limit = limitlar[String(n)] || {};
       const kgHolat = limitHolati(h.kg, limit.kg);
       const kunHolat = limitHolati(h.kun, limit.kun);
+      const umumiy = jiddiyroq(kgHolat, kunHolat);
       return {
         ...h,
         nomi: moshinaNomi(n),
         limit,
         kgHolat,
         kunHolat,
-        umumiy: jiddiyroq(kgHolat, kunHolat),
+        umumiy,
+        // Qaysi ko'rsatkich jiddiyroq — ro'yxatda o'shaning "qoldi/oshdi" matni chiqadi
+        asosiyTur: (umumiy === kunHolat && umumiy !== kgHolat ? 'kun' : 'kg') as Tur,
         yozuvlar: tarix[String(n)] || [],
         kgBoshi: boshlar.kg[String(n)],
         kunBoshi: boshlar.kun[String(n)]
@@ -147,17 +165,14 @@ export default function TexnikXizmatSahifasi() {
     });
   }, [maks, hisoblar, limitlar, tarix, boshlar]);
 
-  // Ogohlantirishlar: kg va kun alohida
-  const ogohlantirishlar = moshinalar.flatMap((m) =>
-    [
-      ogohlantirishmi(m.kgHolat) ? { n: m.n, oshdi: m.kgHolat.holat === 'oshdi', matn: `${m.nomi}: ${holatMatni(m.kgHolat, 'kg')}` } : null,
-      ogohlantirishmi(m.kunHolat) ? { n: m.n, oshdi: m.kunHolat.holat === 'oshdi', matn: `${m.nomi}: ${holatMatni(m.kunHolat, 'kun')}` } : null
-    ].filter((x): x is { n: number; oshdi: boolean; matn: string } => !!x)
-  );
-  const ogohlantirishliSoni = moshinalar.filter((m) => ogohlantirishmi(m.umumiy)).length;
+  const holatSoni = useMemo(() => {
+    const s: Record<Holat, number> = { oshdi: 0, yaqin: 0, yaxshi: 0, yoq: 0 };
+    moshinalar.forEach((m) => (s[m.umumiy.holat] += 1));
+    return s;
+  }, [moshinalar]);
 
   const korinadigan = moshinalar.filter((m) => {
-    if (filtr === 'ogohlantirish' && !ogohlantirishmi(m.umumiy)) return false;
+    if (holatFiltr && m.umumiy.holat !== holatFiltr) return false;
     const q = qidiruv.replace(/\D/g, '');
     return !q || String(m.n) === q;
   });
@@ -241,26 +256,30 @@ export default function TexnikXizmatSahifasi() {
     hisobla(yangiTarix, maks);
   };
 
-  const tanlangan = yangilanadigan !== null ? moshinalar.find((m) => m.n === yangilanadigan) : null;
+  const ochiq = ochiqMoshina !== null ? moshinalar.find((m) => m.n === ochiqMoshina) : null;
+  const moshinaniYopish = () => {
+    setOchiqMoshina(null);
+    setYangilanadigan(null);
+    setXato('');
+  };
 
-  const limitQatori = (m: (typeof moshinalar)[number], tur: Tur) => {
+  // Moshina oynasidagi kg / kun bloki: qiymat + limit maydoni + chiziq
+  const limitBloki = (m: (typeof moshinalar)[number], tur: Tur) => {
     const holat = tur === 'kg' ? m.kgHolat : m.kunHolat;
     const qiymat = tur === 'kg' ? m.kg : m.kun;
     const limit = m.limit[tur];
-    const rang = HOLAT_RANGI[holat.holat];
+    const r = HOLAT[holat.holat];
     return (
-      <div className="rounded-xl bg-slate-50 p-3">
-        <div className="flex items-center justify-between gap-2">
+      <div className="rounded-boshqaruv border border-chiziq bg-sirt p-3">
+        <div className="flex items-end justify-between gap-2">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              {tur === 'kg' ? '⚖️ Mahsulot' : '📅 Ishlagan kun'}
-            </p>
-            <p className="text-lg font-black leading-tight text-slate-900">
-              {sonFormat(qiymat)} <span className="text-xs font-bold text-slate-400">{birlik(tur)}</span>
+            <p className="text-xs text-matn-2">{tur === 'kg' ? 'Mahsulot' : 'Ishlagan kun'}</p>
+            <p className="text-xl font-bold leading-tight text-matn tabular-nums">
+              {sonFormat(qiymat)} <span className="text-sm font-semibold text-matn-3">{birlik(tur)}</span>
             </p>
           </div>
           <label className="text-right">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Limit</span>
+            <span className="block text-xs text-matn-2">Limit</span>
             <input
               key={`${m.n}_${tur}_${limit ?? ''}`}
               inputMode="numeric"
@@ -271,296 +290,299 @@ export default function TexnikXizmatSahifasi() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
               }}
-              className="mt-0.5 w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-right text-base font-black text-slate-800 outline-none focus:border-indigo-500 sm:text-sm"
+              className="mt-0.5 h-9 w-24 rounded-boshqaruv border border-chiziq-2 bg-sirt px-2 text-right text-base md:text-sm font-semibold text-matn tabular-nums outline-none focus:border-asosiy focus:ring-2 focus:ring-asosiy/20"
             />
           </label>
         </div>
         {limit ? (
           <>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-              <div className={`h-full rounded-full ${rang.chiziq}`} style={{ width: `${Math.min(100, holat.foiz)}%` }} />
+            <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-sirt-2">
+              <div className={cn('h-full rounded-full', r.chiziq)} style={{ width: `${Math.min(100, holat.foiz)}%` }} />
             </div>
-            <div className="mt-1 flex justify-between text-[11px] font-bold">
-              <span className={rang.matn}>{holatMatni(holat, tur)}</span>
-              <span className="text-slate-400">{Math.round(holat.foiz)}%</span>
+            <div className="mt-1 flex justify-between text-xs">
+              <span className={cn('font-semibold', r.matn)}>{holatMatni(holat, tur)}</span>
+              <span className="text-matn-3 tabular-nums">{Math.round(holat.foiz)}%</span>
             </div>
           </>
         ) : (
-          <p className="mt-1 text-[11px] font-semibold text-slate-400">Limit qo&apos;yilmagan</p>
+          <p className="mt-1.5 text-xs text-matn-3">Limit qo&apos;yilmagan</p>
         )}
       </div>
     );
   };
 
   return (
-    <div className="mx-auto max-w-7xl">
-      {/* SARLAVHA */}
-      <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-black tracking-tight text-slate-900 sm:text-3xl">
-            <span aria-hidden>🔧</span> Texnik xizmat
-          </h1>
-          <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
-            Har bir moshina hisoblagich yangilangandan beri necha kun ishlagani va necha kg mahsulot chiqargani
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setOmmaviyOchiq(true)}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-[0.98]"
-          >
-            Hammasiga bir xil limit
-          </button>
-          <button
-            onClick={() => hisobla(tarix, maks)}
-            disabled={yuklanmoqda}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-60"
-          >
-            {yuklanmoqda ? 'Hisoblanmoqda...' : '↻ Yangilash'}
-          </button>
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl">
+      <SahifaSarlavhasi
+        sarlavha="Texnik xizmat"
+        amallar={
+          <>
+            <Tugma kichik onClick={() => setOmmaviyOchiq(true)}>
+              Umumiy limit
+            </Tugma>
+            <Tugma
+              kichik
+              ikonka="yangilash"
+              onClick={() => hisobla(tarix, maks)}
+              disabled={yuklanmoqda}
+              aria-label="Yangilash"
+              title="Yangilash"
+              className={cn('px-0! w-9 md:w-8', yuklanmoqda && '[&_svg]:animate-spin')}
+            />
+          </>
+        }
+      />
 
       {manba === 'mahalliy' && !yuklanmoqda && (
-        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">
-          ⚠️ Baza ulanmagan. Hisob faqat shu kompyuterdagi oxirgi smenalardan chiqarildi — to&apos;liq hisob baza ulanganda chiqadi.
-        </div>
+        <Ogohlantirish tur="diqqat" ikonka="ogohlantirish" className="mb-4">
+          Baza ulanmagan. Hisob faqat shu kompyuterdagi oxirgi smenalardan chiqarildi — to&apos;liq hisob baza ulanganda chiqadi.
+        </Ogohlantirish>
       )}
 
-      {/* OGOHLANTIRISHLAR */}
-      {ogohlantirishlar.length > 0 && (
-        <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50/60 p-4">
-          <p className="mb-2 text-xs font-black uppercase tracking-wider text-rose-700">
-            Diqqat: {ogohlantirishliSoni} ta moshina limitga yetdi yoki yaqinlashdi
-          </p>
-          <ul className="flex flex-wrap gap-2">
-            {ogohlantirishlar.map((o, i) => (
-              <li key={i} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${o.oshdi ? 'bg-rose-600 text-white' : 'bg-amber-100 text-amber-900'}`}>
-                {o.oshdi ? '⛔ ' : '⚠️ '}
-                {o.matn}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* FILTR */}
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
-          {(
-            [
-              ['hammasi', `Hammasi (${maks})`],
-              ['ogohlantirish', `Ogohlantirish (${ogohlantirishliSoni})`]
-            ] as const
-          ).map(([k, nomi]) => (
+      {/* HOLAT XULOSASI — bosilsa filtr */}
+      <div className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+        {HOLAT_TARTIBI.map((h) => {
+          const tanlangan = holatFiltr === h;
+          const r = HOLAT[h];
+          return (
             <button
-              key={k}
-              onClick={() => setFiltr(k)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${filtr === k ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              key={h}
+              type="button"
+              onClick={() => setHolatFiltr(tanlangan ? null : h)}
+              aria-pressed={tanlangan}
+              className={cn(
+                'rounded-karta border p-3 text-left transition-all',
+                h === 'yoq' ? 'bg-sirt border-chiziq' : cn(r.fon, 'border-transparent'),
+                tanlangan ? 'ring-2 ring-asosiy' : 'hover:brightness-[0.98]'
+              )}
             >
-              {nomi}
+              <p className={cn('text-xs md:text-sm font-semibold', h === 'yoq' ? 'text-matn-2' : r.matn)}>{r.nomi}</p>
+              <p className={cn('mt-0.5 text-2xl font-bold tabular-nums leading-tight', h === 'yoq' ? 'text-matn' : r.matn)}>{holatSoni[h]}</p>
             </button>
-          ))}
-        </div>
-        <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white sm:w-48">
-          <span className="pl-3 text-sm font-black text-slate-400">MK-</span>
+          );
+        })}
+      </div>
+
+      {/* QIDIRUV */}
+      <div className="mb-3 flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
+        <label className="flex h-11 md:h-10 items-center gap-1.5 rounded-boshqaruv border border-chiziq-2 bg-sirt px-3 md:w-56 focus-within:border-asosiy focus-within:ring-2 focus-within:ring-asosiy/20">
+          <Ikonka nom="qidirish" className="w-4 h-4 text-matn-3" />
+          <span className="text-sm font-semibold text-matn-3">MK-</span>
           <input
             inputMode="numeric"
             value={qidiruv}
             onChange={(e) => setQidiruv(e.target.value.replace(/\D/g, ''))}
             placeholder="raqam"
             aria-label="Moshina raqami bo'yicha qidirish"
-            className="w-full px-1 py-2 text-base font-black text-slate-800 outline-none sm:text-sm"
+            className="w-full bg-transparent text-base md:text-sm font-semibold text-matn outline-none placeholder:font-normal placeholder:text-matn-3"
           />
-        </div>
-        <p className="text-[11px] font-semibold text-slate-400 sm:ml-auto">
+        </label>
+        <p className="text-xs text-matn-3">
           Ogohlantirish limitning {OGOHLANTIRISH_FOIZI}% ida chiqadi · kun = moshina ishlagan kunlar
+          {holatFiltr && (
+            <>
+              {' · '}
+              <button type="button" onClick={() => setHolatFiltr(null)} className="font-semibold text-asosiy hover:underline">
+                Hammasini ko&apos;rsatish
+              </button>
+            </>
+          )}
         </p>
       </div>
 
-      {/* MOSHINA KARTALARI */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {korinadigan.map((m) => (
-          <div key={m.n} className={`rounded-2xl border bg-white p-4 shadow-2xs ${HOLAT_RANGI[m.umumiy.holat].karta}`}>
-            <div className="mb-3 flex items-baseline justify-between gap-2">
-              <p className="text-2xl font-black tracking-tight text-slate-900">{m.nomi}</p>
-              <p className="text-[11px] font-bold text-slate-400">{m.rulon} rulon</p>
-            </div>
+      {/* MOSHINALAR RO'YXATI */}
+      {korinadigan.length === 0 ? (
+        <div className="rounded-karta border border-chiziq bg-sirt">
+          <BoshHolat
+            ikonka={holatFiltr ? 'tasdiq' : 'qidirish'}
+            sarlavha={holatFiltr ? `"${HOLAT[holatFiltr].nomi}" holatida moshina yo'q` : 'Bunday raqamli moshina yo\'q'}
+          />
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-karta border border-chiziq bg-sirt">
+          <div className="grid lg:grid-cols-2">
+            {korinadigan.map((m) => {
+              const h = m.umumiy;
+              const r = HOLAT[h.holat];
+              return (
+                <button
+                  key={m.n}
+                  type="button"
+                  onClick={() => setOchiqMoshina(m.n)}
+                  className={cn(
+                    'flex items-center gap-3 border-b border-chiziq px-3 md:px-4 py-3 text-left transition-colors lg:[&:nth-child(odd)]:border-r',
+                    h.holat === 'oshdi' ? 'bg-xato-och hover:brightness-[0.98]' : 'hover:bg-sirt-2'
+                  )}
+                >
+                  <span className={cn('h-2 w-2 shrink-0 rounded-full', r.nuqta)} />
+                  <span className="w-14 shrink-0 font-bold text-matn">{m.nomi}</span>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Chiziq yorliq="kg" h={m.kgHolat} />
+                    <Chiziq yorliq="kun" h={m.kunHolat} />
+                  </div>
+                  <div className="w-[76px] shrink-0 text-right">
+                    {h.holat === 'yoq' ? (
+                      <p className="text-xs text-matn-3">Limit yo&apos;q</p>
+                    ) : (
+                      <>
+                        <p className={cn('text-sm font-semibold tabular-nums whitespace-nowrap', h.holat === 'yaxshi' ? 'text-matn' : r.matn)}>
+                          {h.holat === 'oshdi' ? '+' : ''}
+                          {sonFormat(Math.abs(h.qoldi))} {birlik(m.asosiyTur)}
+                        </p>
+                        <p className="text-[11px] text-matn-3">{h.holat === 'oshdi' ? 'oshdi' : 'qoldi'}</p>
+                      </>
+                    )}
+                  </div>
+                  <Ikonka nom="ongga" className="hidden md:block w-4 h-4 shrink-0 text-matn-3" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-            <div className="mb-3 space-y-2">
-              {limitQatori(m, 'kg')}
-              {limitQatori(m, 'kun')}
-            </div>
+      {/* MOSHINA OYNASI: limitlar, hisoblagich, tarix */}
+      <Oyna
+        ochiq={!!ochiq}
+        yopish={moshinaniYopish}
+        sarlavha={
+          ochiq ? (
+            <span className="flex items-center gap-2">
+              {ochiq.nomi}
+              <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', HOLAT[ochiq.umumiy.holat].belgi)}>{HOLAT[ochiq.umumiy.holat].nomi}</span>
+            </span>
+          ) : null
+        }
+      >
+        {ochiq && (
+          <div className="space-y-3">
+            {limitBloki(ochiq, 'kg')}
+            {limitBloki(ochiq, 'kun')}
 
-            <p className="mb-3 text-[11px] font-semibold leading-relaxed text-slate-400">
-              Kg hisoblagichi: {m.kgBoshi ? `${vaqtKorinishi(m.kgBoshi)} dan` : 'boshidan beri'}
+            <p className="text-xs leading-relaxed text-matn-2">
+              Kg hisoblagichi: {ochiq.kgBoshi ? `${vaqtKorinishi(ochiq.kgBoshi)} dan` : 'boshidan beri'}
               <br />
-              Kun hisoblagichi: {m.kunBoshi ? `${vaqtKorinishi(m.kunBoshi)} dan` : 'boshidan beri'}
+              Kun hisoblagichi: {ochiq.kunBoshi ? `${vaqtKorinishi(ochiq.kunBoshi)} dan` : 'boshidan beri'} · {ochiq.rulon} rulon
             </p>
 
-            <div className="flex gap-2">
-              <button
+            {yangilanadigan === ochiq.n ? (
+              <div className="space-y-3 rounded-boshqaruv border border-chiziq-2 bg-sirt-2 p-3">
+                <div>
+                  <p className="text-sm font-semibold text-matn">Qaysi hisoblagich noldan boshlansin?</p>
+                  <p className="text-xs text-matn-2">Hozirgi qiymati tarixga yoziladi.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['kg', 'kun'] as Tur[]).map((tur) => {
+                    const tanlandi = tanlanganTurlar.has(tur);
+                    return (
+                      <button
+                        key={tur}
+                        type="button"
+                        onClick={() => turniAlmashtirish(tur)}
+                        aria-pressed={tanlandi}
+                        className={cn(
+                          'rounded-boshqaruv border-2 bg-sirt p-2.5 text-left transition-colors',
+                          tanlandi ? 'border-asosiy bg-asosiy-och' : 'border-chiziq hover:border-chiziq-2'
+                        )}
+                      >
+                        <span className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-matn-2">{tur === 'kg' ? 'Kg' : 'Kun'}</span>
+                          <span
+                            className={cn(
+                              'flex h-5 w-5 items-center justify-center rounded-[5px] border-2',
+                              tanlandi ? 'border-asosiy bg-asosiy text-white' : 'border-chiziq-2'
+                            )}
+                          >
+                            {tanlandi && <Ikonka nom="tasdiq" className="w-3 h-3" />}
+                          </span>
+                        </span>
+                        <span className="mt-1 block text-lg font-bold text-matn tabular-nums">
+                          {sonFormat(tur === 'kg' ? ochiq.kg : ochiq.kun)} {birlik(tur)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Maydon
+                  yorliq="Mexanik ismi"
+                  value={mexanikIsmi}
+                  onChange={(e) => {
+                    setMexanikIsmi(e.target.value);
+                    setXato('');
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && hisoblagichniYangilash()}
+                  placeholder="Masalan: Akmal"
+                  xato={xato || undefined}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Tugma onClick={() => setYangilanadigan(null)}>Bekor qilish</Tugma>
+                  <Tugma tur="xavfli" onClick={hisoblagichniYangilash} disabled={tanlanganTurlar.size === 0}>
+                    {tanlanganTurlar.size === 2 ? 'Ikkalasini nolga' : tanlanganTurlar.has('kg') ? 'Kg ni nolga' : tanlanganTurlar.has('kun') ? 'Kunni nolga' : 'Tanlang'}
+                  </Tugma>
+                </div>
+              </div>
+            ) : (
+              <Tugma
+                toliq
+                ikonka="yangilash"
+                className="bg-matn! text-sirt! border-0! hover:opacity-90"
                 onClick={() => {
                   setXato('');
                   setTanlanganTurlar(new Set());
-                  setYangilanadigan(m.n);
+                  setYangilanadigan(ochiq.n);
                 }}
-                className="flex-1 rounded-xl bg-slate-900 px-3 py-2.5 text-xs font-black text-white transition-all hover:bg-slate-700 active:scale-[0.98]"
               >
-                🔧 Hisoblagichni yangilash
-              </button>
-              <button
-                onClick={() => setTarixOchiq(tarixOchiq === m.n ? null : m.n)}
-                className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
-              >
-                Tarix ({m.yozuvlar.length})
-              </button>
-            </div>
-
-            {tarixOchiq === m.n && (
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                {m.yozuvlar.length === 0 ? (
-                  <p className="text-xs font-semibold text-slate-400">Hali yangilanmagan</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {[...m.yozuvlar].reverse().map((y, i) => (
-                      <li key={i} className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                        <p className="font-black text-slate-800">
-                          {vaqtKorinishi(y.vaqt)} · <span className="text-indigo-600">{turNomi(y)}</span>
-                        </p>
-                        <p className="font-semibold text-slate-600">
-                          {turKgmi(y) && `${sonFormat(y.kg)} kg (${y.rulon} rulon)`}
-                          {turKgmi(y) && turKunmi(y) && ' · '}
-                          {turKunmi(y) && `${y.kun} kun`}
-                        </p>
-                        <p className="font-semibold text-slate-400">Yangiladi: {y.kim}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                Hisoblagichni yangilash
+              </Tugma>
             )}
-          </div>
-        ))}
-      </div>
 
-      {korinadigan.length === 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-bold text-slate-400">
-          {filtr === 'ogohlantirish' ? 'Hozircha limitga yaqin moshina yo\'q ✓' : 'Bunday raqamli moshina yo\'q'}
-        </div>
-      )}
-
-      {/* HISOBLAGICHNI YANGILASH OYNASI */}
-      {tanlangan && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4" onClick={() => setYangilanadigan(null)}>
-          <div className="w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <h2 className="text-lg font-black text-slate-900">{tanlangan.nomi} — hisoblagichni yangilash</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Qaysi hisoblagich noldan boshlansin? Hozirgi qiymati tarixga yoziladi.</p>
-
-            <div className="my-4 grid grid-cols-2 gap-2">
-              {(['kg', 'kun'] as Tur[]).map((tur) => {
-                const tanlandi = tanlanganTurlar.has(tur);
-                return (
-                  <button
-                    key={tur}
-                    type="button"
-                    onClick={() => turniAlmashtirish(tur)}
-                    aria-pressed={tanlandi}
-                    className={`rounded-2xl border-2 p-3 text-left transition-all ${
-                      tanlandi ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <span className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase text-slate-500">{tur === 'kg' ? '⚖️ Kg' : '📅 Kun'}</span>
-                      <span className={`flex h-5 w-5 items-center justify-center rounded-md border-2 text-[11px] font-black ${tanlandi ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'}`}>
-                        {tanlandi ? '✓' : ''}
-                      </span>
-                    </span>
-                    <span className="mt-1 block text-xl font-black text-slate-900">
-                      {sonFormat(tur === 'kg' ? tanlangan.kg : tanlangan.kun)} {birlik(tur)}
-                    </span>
-                    <span className="block text-[10px] font-bold text-slate-400">
-                      {tanlangan.limit[tur] ? `limit: ${sonFormat(tanlangan.limit[tur]!)} ${birlik(tur)}` : 'limit yo\'q'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Mexanik ismi</label>
-            <input
-              value={mexanikIsmi}
-              onChange={(e) => {
-                setMexanikIsmi(e.target.value);
-                setXato('');
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && hisoblagichniYangilash()}
-              placeholder="Masalan: Akmal"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-base font-bold text-slate-900 outline-none focus:border-indigo-500 focus:bg-white"
-            />
-            {xato && <p className="mt-2 text-xs font-bold text-rose-600">{xato}</p>}
-
-            <div className="mt-5 flex gap-2">
-              <button onClick={() => setYangilanadigan(null)} className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
-                Bekor qilish
-              </button>
-              <button
-                onClick={hisoblagichniYangilash}
-                disabled={tanlanganTurlar.size === 0}
-                className="flex-1 rounded-xl bg-rose-600 py-3 text-sm font-black text-white shadow-sm hover:bg-rose-700 active:scale-[0.98] disabled:opacity-40"
-              >
-                {tanlanganTurlar.size === 2 ? 'Ikkalasini noldan boshlash' : tanlanganTurlar.has('kg') ? 'Kg ni noldan boshlash' : tanlanganTurlar.has('kun') ? 'Kunni noldan boshlash' : 'Tanlang'}
-              </button>
+            <div className="pt-1">
+              <p className="mb-2 text-sm font-semibold text-matn">Xizmat tarixi</p>
+              {ochiq.yozuvlar.length === 0 ? (
+                <p className="text-sm text-matn-3">Hali yangilanmagan</p>
+              ) : (
+                <ol className="ml-1 space-y-3 border-l-2 border-chiziq-2 pl-3">
+                  {[...ochiq.yozuvlar].reverse().map((y, i) => (
+                    <li key={i}>
+                      <p className="text-sm font-semibold text-matn">
+                        {vaqtKorinishi(y.vaqt)} · {turNomi(y)}
+                      </p>
+                      <p className="text-xs text-matn-2">
+                        {turKgmi(y) && `${sonFormat(y.kg)} kg (${y.rulon} rulon)`}
+                        {turKgmi(y) && turKunmi(y) && ' · '}
+                        {turKunmi(y) && `${y.kun} kun`} · {y.kim}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Oyna>
 
-      {/* HAMMASIGA BIR XIL LIMIT OYNASI */}
-      {ommaviyOchiq && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4" onClick={() => setOmmaviyOchiq(false)}>
-          <div className="w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <h2 className="text-lg font-black text-slate-900">Hammasiga bir xil limit</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">
-              MK-1 dan MK-{maks} gacha barcha moshinalarga qo&apos;yiladi. Bo&apos;sh qoldirilgan maydon o&apos;zgarmaydi. Keyin alohida moshinani o&apos;zgartirish mumkin.
-            </p>
-            <div className="my-4 grid grid-cols-2 gap-3">
-              <label>
-                <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">⚖️ Kg limiti</span>
-                <input
-                  inputMode="numeric"
-                  value={ommaviyKg}
-                  onChange={(e) => setOmmaviyKg(e.target.value.replace(/\D/g, ''))}
-                  placeholder="10000"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-base font-black text-slate-900 outline-none focus:border-indigo-500 focus:bg-white"
-                />
-              </label>
-              <label>
-                <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">📅 Kun limiti</span>
-                <input
-                  inputMode="numeric"
-                  value={ommaviyKun}
-                  onChange={(e) => setOmmaviyKun(e.target.value.replace(/\D/g, ''))}
-                  placeholder="30"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-base font-black text-slate-900 outline-none focus:border-indigo-500 focus:bg-white"
-                />
-              </label>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setOmmaviyOchiq(false)} className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
-                Bekor qilish
-              </button>
-              <button
-                onClick={ommaviyQollash}
-                disabled={!ommaviyKg && !ommaviyKun}
-                className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-black text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40"
-              >
-                {maks} ta moshinaga qo&apos;yish
-              </button>
-            </div>
-          </div>
+      {/* UMUMIY LIMIT OYNASI */}
+      <Oyna
+        ochiq={ommaviyOchiq}
+        yopish={() => setOmmaviyOchiq(false)}
+        sarlavha="Umumiy limit"
+        amallar={
+          <>
+            <Tugma onClick={() => setOmmaviyOchiq(false)}>Bekor qilish</Tugma>
+            <Tugma tur="asosiy" onClick={ommaviyQollash} disabled={!ommaviyKg && !ommaviyKun}>
+              {maks} ta moshinaga qo&apos;yish
+            </Tugma>
+          </>
+        }
+      >
+        <p className="mb-4">
+          MK-1 dan MK-{maks} gacha barcha moshinalarga qo&apos;yiladi. Bo&apos;sh qoldirilgan maydon o&apos;zgarmaydi. Keyin alohida moshinani o&apos;zgartirish mumkin.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <Maydon yorliq="Kg limiti" inputMode="numeric" value={ommaviyKg} onChange={(e) => setOmmaviyKg(e.target.value.replace(/\D/g, ''))} placeholder="10000" />
+          <Maydon yorliq="Kun limiti" inputMode="numeric" value={ommaviyKun} onChange={(e) => setOmmaviyKun(e.target.value.replace(/\D/g, ''))} placeholder="30" />
         </div>
-      )}
+      </Oyna>
     </div>
   );
 }

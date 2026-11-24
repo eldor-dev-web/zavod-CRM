@@ -3,9 +3,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { arxivCsv, mahalliySmenaniOgirish, NUQSON_TURLARI, smenaJamisi, type ArxivSmena } from '@/lib/arxiv';
 import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
 import { tungimi } from '@/lib/smena';
+import { SahifaSarlavhasi, SanaTanlash, Ogohlantirish, Korsatkich, BoshHolat, Tugma, Ikonka, cn } from '@/components/ui';
 
-const sanaKorinishi = (s: string) => (s ? `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}` : '');
 const kgFormat = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+
+// Telefonda nuqson ustunlari qisqa nom bilan (Rulonlardagi tik jadval bilan bir xil)
+const QISQA: Record<string, string> = { Patlak: 'Pat.', 'Lyc xato': 'Lyc', 'Igna siniq': 'Igna', 'Yog izi': "Yog'", Kumas: 'Kum.' };
+const TOLIQ: Record<string, string> = { 'Yog izi': "Yog' izi" };
 
 // Baza ulanmaganda: shu brauzerda saqlangan smenalardan qidirish
 function mahalliyArxiv(sana: string, smena: string): ArxivSmena[] {
@@ -32,18 +36,80 @@ function mahalliyArxiv(sana: string, smena: string): ArxivSmena[] {
     .sort((a, b) => Number(tungimi(a.smena)) - Number(tungimi(b.smena)));
 }
 
-const Ikon = {
-  Yuklash: () => (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-    </svg>
-  ),
-  Printer: () => (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-    </svg>
-  ),
-};
+// Bitta moshina: Rulonlardagi tik jadval ko'rinishi (faqat o'qish uchun)
+function ArxivMoshina({ m }: { m: ArxivSmena['moshinalar'][number] }) {
+  const mKg = m.rulonlar.reduce((a, r) => a + (r.kg ?? 0), 0);
+  return (
+    <div className="overflow-hidden rounded-boshqaruv border border-chiziq bg-sirt print:break-inside-avoid">
+      <div className="flex items-baseline gap-2 px-3 pt-2.5">
+        <span className="shrink-0 text-xl font-bold uppercase text-matn">{m.raqam || '—'}</span>
+        <span className="flex-1 min-w-0 truncate text-sm text-matn-2">{m.talimoti || ''}</span>
+        <span className="shrink-0 text-sm font-bold text-yaxshi tabular-nums">{kgFormat(mKg)} kg</span>
+      </div>
+
+      <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-1.5 px-3 pt-2 pb-3">
+        <div className="min-w-0 rounded-boshqaruv bg-asosiy-och px-2 py-1">
+          <p className="text-[11px] text-asosiy">Operator</p>
+          <p className="truncate text-sm font-semibold text-asosiy">{m.operator || '—'}</p>
+        </div>
+        {(
+          [
+            ['Brend', m.brend],
+            ['IP', m.ip],
+            ['Lot', m.lot]
+          ] as const
+        ).map(([nomi, qiymat]) => (
+          <div key={nomi} className="min-w-0 rounded-boshqaruv bg-sirt-2 px-2 py-1">
+            <p className="text-[11px] text-matn-3">{nomi}</p>
+            <p className="truncate text-sm text-matn">{qiymat || '—'}</p>
+          </div>
+        ))}
+      </div>
+
+      {m.rulonlar.length > 0 ? (
+        <table className="w-full table-fixed border-collapse text-center">
+          <colgroup>
+            <col className="w-7 md:w-12" />
+            <col className="w-[58px] md:w-28" />
+            {NUQSON_TURLARI.map((n) => (
+              <col key={n} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr className="bg-sirt-2 border-y border-chiziq text-[11px] md:text-xs font-semibold text-matn-2">
+              <th className="py-2 font-semibold">№</th>
+              <th className="py-2 font-semibold text-yaxshi border-l border-chiziq">KG</th>
+              {NUQSON_TURLARI.map((n) => (
+                <th key={n} className="py-2 font-semibold truncate px-0.5 border-l border-chiziq">
+                  <span className="md:hidden">{QISQA[n] || n}</span>
+                  <span className="hidden md:inline">{TOLIQ[n] || n}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {m.rulonlar.map((r) => (
+              <tr key={r.tartib} className="h-10 border-b border-chiziq last:border-b-0">
+                <td className="text-xs text-matn-3 tabular-nums">{r.tartib}</td>
+                <td className="border-l border-chiziq text-base font-bold text-yaxshi tabular-nums">{r.kg !== null ? kgFormat(r.kg) : '—'}</td>
+                {NUQSON_TURLARI.map((n) => {
+                  const q = r.nuqsonlar[n];
+                  return (
+                    <td key={n} className={cn('border-l border-chiziq text-base truncate px-0.5', q ? 'bg-xato-och font-bold text-xato' : 'text-matn-3')}>
+                      {q || '·'}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="border-t border-chiziq px-3 py-2.5 text-sm text-matn-3">Rulon kiritilmagan</p>
+      )}
+    </div>
+  );
+}
 
 export default function ArxivSahifasi() {
   // Bugungi sana faqat brauzerda olinadi (sahifa yig'ilayotganda vaqtni o'qish taqiqlangan — cacheComponents)
@@ -86,9 +152,9 @@ export default function ArxivSahifasi() {
       smenalar.reduce(
         (acc, s) => {
           const j = smenaJamisi(s);
-          return { kg: acc.kg + j.kg, rulon: acc.rulon + j.rulon };
+          return { kg: acc.kg + j.kg, rulon: acc.rulon + j.rulon, moshina: acc.moshina + s.moshinalar.length };
         },
-        { kg: 0, rulon: 0 }
+        { kg: 0, rulon: 0, moshina: 0 }
       ),
     [smenalar]
   );
@@ -103,202 +169,111 @@ export default function ArxivSahifasi() {
     URL.revokeObjectURL(url);
   };
 
-  const smenaTugmasi = (qiymat: '' | 'DEN' | 'NOCH', nomi: string, vaqt?: string) => {
-    const tanlangan = smena === qiymat;
-    const rang = qiymat === 'NOCH' ? 'bg-slate-800 text-white' : qiymat === 'DEN' ? 'bg-amber-400 text-amber-950' : 'bg-indigo-600 text-white';
-    return (
-      <button
-        type="button"
-        onClick={() => setSmena(qiymat)}
-        className={`flex-1 rounded-xl px-3 py-2 text-left transition-all ${tanlangan ? `${rang} shadow-sm` : 'text-slate-500 hover:bg-slate-100'}`}
-      >
-        <span className="block text-sm font-black leading-tight">{nomi}</span>
-        {vaqt && <span className="block text-[10px] font-bold opacity-70">{vaqt}</span>}
-      </button>
-    );
-  };
+  const SMENA_TANLOVI: { qiymat: '' | 'DEN' | 'NOCH'; nomi: string; ikonka?: 'quyosh' | 'oy' }[] = [
+    { qiymat: '', nomi: 'Ikkalasi' },
+    { qiymat: 'DEN', nomi: 'DEN', ikonka: 'quyosh' },
+    { qiymat: 'NOCH', nomi: 'NOCH', ikonka: 'oy' }
+  ];
 
   return (
-    <div className="mx-auto max-w-7xl">
-      {/* SARLAVHA */}
-      <div className="mb-5">
-        <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-3xl">Smenalar arxivi</h1>
-        <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm print:hidden">
-          Sanani va smenani tanlang — o&apos;sha smenaning barcha moshina va rulonlari chiqadi
-        </p>
-      </div>
+    <div className="mx-auto max-w-5xl">
+      <SahifaSarlavhasi
+        sarlavha="Smenalar arxivi"
+        amallar={
+          <div className="flex items-center gap-2 print:hidden">
+            <Tugma kichik ikonka="yuklab" onClick={excelgaYuklash} disabled={smenalar.length === 0}>
+              Excel
+            </Tugma>
+            <Tugma kichik ikonka="chop" onClick={() => window.print()} disabled={smenalar.length === 0} aria-label="Chop etish" title="Chop etish">
+              <span className="hidden md:inline">Chop etish</span>
+            </Tugma>
+          </div>
+        }
+      />
 
       {/* TANLASH: SANA + SMENA */}
-      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs sm:flex-row sm:items-center print:hidden">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSana(sanagaKunQoshish(sana, -1))}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-lg font-black text-slate-600 transition-colors hover:bg-slate-100"
-            title="Oldingi kun"
-          >
-            ‹
-          </button>
-          <input
-            type="date"
-            value={sana}
-            onChange={(e) => e.target.value && setSana(e.target.value)}
-            className="h-11 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-black text-slate-800 outline-none focus:border-indigo-500 focus:bg-white sm:w-48 sm:flex-none"
-          />
-          <button
-            type="button"
-            onClick={() => setSana(sanagaKunQoshish(sana, 1))}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-lg font-black text-slate-600 transition-colors hover:bg-slate-100"
-            title="Keyingi kun"
-          >
-            ›
-          </button>
-        </div>
-
-        <div className="flex flex-1 gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1">
-          {smenaTugmasi('', 'Ikkalasi')}
-          {smenaTugmasi('DEN', '☀️ DEN')}
-          {smenaTugmasi('NOCH', '🌙 NOCH')}
+      <div className="mb-4 flex flex-col gap-2.5 md:flex-row md:items-center print:hidden">
+        <SanaTanlash
+          sana={sana}
+          ozgartirish={setSana}
+          oldingi={() => sana && setSana(sanagaKunQoshish(sana, -1))}
+          keyingi={() => sana && setSana(sanagaKunQoshish(sana, 1))}
+          className="md:w-96"
+        />
+        <div className="grid grid-cols-3 gap-1 rounded-boshqaruv bg-sirt-2 p-1 md:w-80">
+          {SMENA_TANLOVI.map((t) => {
+            const tanlangan = smena === t.qiymat;
+            return (
+              <button
+                key={t.nomi}
+                type="button"
+                onClick={() => setSmena(t.qiymat)}
+                aria-pressed={tanlangan}
+                className={cn(
+                  'h-9 md:h-8 inline-flex items-center justify-center gap-1.5 rounded-[6px] text-sm transition-colors',
+                  tanlangan ? 'bg-sirt border border-chiziq font-semibold text-matn shadow-sm' : 'text-matn-2 hover:text-matn'
+                )}
+              >
+                {t.ikonka && <Ikonka nom={t.ikonka} className="w-4 h-4" />}
+                {t.nomi}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {manba === 'mahalliy' && (
-        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 print:hidden">
-          ⚠️ Baza ulanmagan. Faqat shu kompyuterda saqlangan smenalar ko&apos;rsatilmoqda — to&apos;liq arxiv baza ulanganda chiqadi.
-        </div>
+        <Ogohlantirish tur="diqqat" ikonka="ogohlantirish" className="mb-4 print:hidden">
+          Baza ulanmagan. Faqat shu kompyuterda saqlangan smenalar ko&apos;rsatilmoqda — to&apos;liq arxiv baza ulanganda chiqadi.
+        </Ogohlantirish>
       )}
 
-      {/* JAMI VA AMALLAR */}
-      <div className="mb-4 flex flex-col justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-2xs sm:flex-row sm:items-center">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-black sm:text-sm">
-          <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-slate-700">{sanaKorinishi(sana)}</span>
-          <span className="rounded-lg bg-indigo-50 px-3 py-1.5 text-indigo-700">{jami.rulon} rulon</span>
-          <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-emerald-700">{kgFormat(jami.kg)} kg</span>
-        </div>
-        <div className="flex items-center gap-2 print:hidden">
-          <button
-            type="button"
-            onClick={excelgaYuklash}
-            disabled={smenalar.length === 0}
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-          >
-            <Ikon.Yuklash /> Excel
-          </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            disabled={smenalar.length === 0}
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-          >
-            <Ikon.Printer /> Chop etish
-          </button>
-        </div>
+      {/* JAMI */}
+      <div className="mb-4 grid grid-cols-3 gap-2 md:gap-3">
+        <Korsatkich ixcham nomi="Jami kg" qiymat={kgFormat(jami.kg)} />
+        <Korsatkich ixcham nomi="Rulonlar" qiymat={jami.rulon} />
+        <Korsatkich ixcham nomi="Moshinalar" qiymat={jami.moshina} />
       </div>
 
       {/* NATIJA */}
       {yuklanmoqda ? (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-10 text-center text-sm font-bold text-slate-400">Yuklanmoqda...</div>
+        <div className="rounded-karta border border-chiziq bg-sirt p-10 text-center text-sm text-matn-3">Yuklanmoqda...</div>
       ) : smenalar.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-10 text-center">
-          <p className="text-sm font-bold text-slate-500">Bu sanada {smena ? `${smena} smenasi` : 'smena'} topilmadi</p>
-          <p className="mt-1 text-xs text-slate-400">‹ › tugmalari bilan boshqa kunni tanlab ko&apos;ring</p>
+        <div className="rounded-karta border border-chiziq bg-sirt">
+          <BoshHolat ikonka="arxiv" sarlavha={`Bu sanada ${smena ? `${smena} smenasi` : 'smena'} topilmadi`} izoh="‹ › tugmalari bilan boshqa kunni tanlab ko'ring" />
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {smenalar.map((s) => {
             const j = smenaJamisi(s);
             const tungi = tungimi(s.smena);
             return (
-              <section key={`${s.sana}_${s.smena}`} className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
-                <div className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-lg px-2.5 py-1 text-xs font-black ${tungi ? 'bg-slate-800 text-white' : 'bg-amber-400 text-amber-950'}`}>
-                      {tungi ? '🌙 NOCH' : '☀️ DEN'}
+              <section key={`${s.sana}_${s.smena}`} className="overflow-hidden rounded-karta border border-chiziq bg-sirt">
+                <div className="border-b border-chiziq px-3 md:px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
+                        tungi ? 'bg-noch text-white' : 'bg-den-och text-diqqat'
+                      )}
+                    >
+                      <Ikonka nom={tungi ? 'oy' : 'quyosh'} className="w-3.5 h-3.5" />
+                      {tungi ? 'NOCH' : 'DEN'}
                     </span>
-                    <span className="text-xs font-semibold text-slate-500">
-                      Master: <b className="text-slate-700">{s.master || '—'}</b> · Kontrolchi: <b className="text-slate-700">{s.kontrolchi || '—'}</b>
+                    <span className="text-sm text-matn-2 tabular-nums">
+                      {s.moshinalar.length} moshina · {j.rulon} rulon · <b className="font-semibold text-yaxshi">{kgFormat(j.kg)} kg</b>
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-black text-slate-600">
-                    <span>{s.moshinalar.length} moshina</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-indigo-600">{j.rulon} rulon</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-emerald-600">{kgFormat(j.kg)} kg</span>
-                  </div>
+                  <p className="mt-1.5 text-xs md:text-sm text-matn-2">
+                    Master: <span className="text-matn">{s.master || '—'}</span> · Kontrolchi: <span className="text-matn">{s.kontrolchi || '—'}</span>
+                  </p>
                 </div>
 
-                <div className="space-y-4 bg-slate-50/50 p-3 sm:p-4">
-                  {s.moshinalar.length === 0 && <p className="text-xs font-semibold text-slate-400">Bu smenada moshina ma&apos;lumoti yo&apos;q</p>}
-                {s.moshinalar.map((m, mi) => {
-                  const mKg = m.rulonlar.reduce((a, r) => a + (r.kg ?? 0), 0);
-                  return (
-                    <div
-                      key={mi}
-                      className={`overflow-hidden rounded-xl border bg-white print:break-inside-avoid border-slate-200`}
-                    >
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-100 px-3 py-2.5 text-xs">
-                        <span className="text-lg font-black uppercase text-slate-900">{m.raqam || '—'}</span>
-                        {(
-                          [
-                            ['Operator', m.operator],
-                            ['Talimoti', m.talimoti],
-                            ['Brend', m.brend],
-                            ['IP', m.ip],
-                            ['Lot', m.lot]
-                          ] as const
-                        ).map(([nomi, qiymat]) => (
-                          <span key={nomi} className="font-semibold text-slate-500">
-                            {nomi}: <b className="text-slate-800">{qiymat || '—'}</b>
-                          </span>
-                        ))}
-                        <span className="ml-auto font-black text-emerald-700">
-                          {m.rulonlar.filter((r) => r.kg !== null).length} rulon · {kgFormat(mKg)} kg
-                        </span>
-                      </div>
-
-                      {m.rulonlar.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full min-w-max border-collapse text-center text-xs">
-                            <thead>
-                              <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                                <th className="border-r border-slate-100 px-2 py-2">№</th>
-                                <th className="border-r border-slate-100 px-2 py-2">Vaqt</th>
-                                <th className="border-r border-slate-100 px-2 py-2">Kg</th>
-                                {NUQSON_TURLARI.map((n) => (
-                                  <th key={n} className="border-r border-slate-100 px-2 py-2 last:border-r-0">
-                                    {n}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {m.rulonlar.map((r) => (
-                                <tr key={r.tartib} className="border-t border-slate-100">
-                                  <td className="border-r border-slate-100 px-2 py-1.5 font-bold text-slate-400">{r.tartib}</td>
-                                  <td className="border-r border-slate-100 px-2 py-1.5 font-bold text-indigo-500">{r.vaqt || '—'}</td>
-                                  <td className="border-r border-slate-100 px-2 py-1.5 font-black text-emerald-700">{r.kg ?? '—'}</td>
-                                  {NUQSON_TURLARI.map((n) => (
-                                    <td
-                                      key={n}
-                                      className={`border-r border-slate-100 px-2 py-1.5 font-bold last:border-r-0 ${
-                                        r.nuqsonlar[n] ? 'bg-rose-50 text-rose-700' : 'text-slate-300'
-                                      }`}
-                                    >
-                                      {r.nuqsonlar[n] || '·'}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="px-3 py-2 text-xs font-semibold text-slate-400">Rulon kiritilmagan</p>
-                      )}
-                    </div>
-                  );
-                })}
+                <div className="space-y-3 p-2.5 md:p-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+                  {s.moshinalar.length === 0 && <p className="text-sm text-matn-3">Bu smenada moshina ma&apos;lumoti yo&apos;q</p>}
+                  {s.moshinalar.map((m, mi) => (
+                    <ArxivMoshina key={mi} m={m} />
+                  ))}
                 </div>
               </section>
             );
