@@ -7,6 +7,7 @@
 // ============================================================
 
 import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
+import { birlashtir, type Ziddiyat } from '@/lib/birlashtirish';
 
 const NAVBAT_KALITI = '_zavod_navbat';
 const KOCHISH_BELGISI = '_zavod_navbat_v1';
@@ -36,7 +37,7 @@ export const hisobotIdsi = (sana: string, smena: string) => `h:${sana}|${smena}`
 export const smenaMahalliyKaliti = (sana: string, smena: string) => `zavod_smena_${sana}_${smena}`;
 
 // --- Holat (ekrandagi belgi uchun) ---
-export type SinxronHolati = { kutmoqda: number; yuborilmoqda: boolean; ulanmagan: boolean };
+export type SinxronHolati = { kutmoqda: number; yuborilmoqda: boolean; ulanmagan: boolean; navbatBoshi: number | null };
 let yuborilmoqda = false;
 let ulanmagan = false;
 
@@ -54,15 +55,25 @@ export function navbat(): string[] {
   }
 }
 
+// Navbat qachondan beri bo'sh emas (30 daqiqadan oshsa — qizil ogohlantirish)
+const NAVBAT_BOSHI = '_zavod_navbat_boshi';
+function navbatBoshi(): number | null {
+  const n = Number(localStorage.getItem(NAVBAT_BOSHI));
+  return n > 0 ? n : null;
+}
+
 function navbatniYozish(royxat: string[]) {
-  yozish(NAVBAT_KALITI, JSON.stringify(Array.from(new Set(royxat))));
+  const yangi = Array.from(new Set(royxat));
+  yozish(NAVBAT_KALITI, JSON.stringify(yangi));
+  if (yangi.length === 0) localStorage.removeItem(NAVBAT_BOSHI);
+  else if (!navbatBoshi()) yozish(NAVBAT_BOSHI, String(Date.now()));
   holatniTarqatish();
 }
 
 export const navbatdami = (id: string) => navbat().includes(id);
 
 export function joriyHolat(): SinxronHolati {
-  return { kutmoqda: navbat().length, yuborilmoqda, ulanmagan };
+  return { kutmoqda: navbat().length, yuborilmoqda, ulanmagan, navbatBoshi: navbat().length ? navbatBoshi() : null };
 }
 
 function holatniTarqatish() {
@@ -182,13 +193,208 @@ async function davomatniYuborish(): Promise<Natija> {
   return natija;
 }
 
-async function idniYuborish(id: string): Promise<Natija> {
-  if (id.startsWith('x:')) {
-    const kalit = id.slice(2);
-    const qiymat = localStorage.getItem(kalit);
-    if (qiymat === null) return 'ok';
-    return postQilish('/api/xotira', { kalit, qiymat });
+// ============================================================
+// VERSIYA VA BIRLASHTIRISH
+// Har bir kalit uchun "asos" — bazadan oxirgi olingan (yoki saqlangan) nusxa va uning versiyasi.
+// Saqlashda server shu versiyani tekshiradi; bazada yangirog'i bo'lsa — 409, qurilma birlashtirib qayta yuboradi.
+// ============================================================
+const ASOS_PREFIKSI = '_zavod_asos__';
+const ASOS_TAYYOR = '_zavod_asos_tayyor'; // kamida bir marta to'liq olingan (shundan keyin yangi kalit "asos: null" bilan ketadi)
+const OXIRGI_TORTISH = '_zavod_oxirgi_tortish';
+const ZIDDIYATLAR = '_zavod_ziddiyatlar';
+const SAQLANMADI = '_zavod_saqlanmadi';
+
+type Asos = { v: string; q: string };
+
+function asosOl(kalit: string): Asos | null {
+  try {
+    const a = JSON.parse(localStorage.getItem(ASOS_PREFIKSI + kalit) || 'null');
+    return a && typeof a.v === 'string' && typeof a.q === 'string' ? a : null;
+  } catch {
+    return null;
   }
+}
+
+function asosYoz(kalit: string, v: unknown, q: string) {
+  if (kalit === DAVOMAT_KALITI || !v) return; // davomat katakma-katak saqlanadi
+  try {
+    yozish(ASOS_PREFIKSI + kalit, JSON.stringify({ v: new Date(String(v)).toISOString(), q }));
+  } catch {}
+}
+
+const qiymatMatni = (q: unknown) => (typeof q === 'string' ? q : JSON.stringify(q ?? null));
+
+// Boshqa qurilmadan yangi ma'lumot kelganda sahifalar o'z ekranini yangilaydi (sahifa qayta yuklanmaydi)
+function yangilandiDeb(kalitlar: string[]) {
+  if (kalitlar.length) window.dispatchEvent(new CustomEvent('zavod_xotira_yangilandi', { detail: { kalitlar } }));
+}
+
+// --- Jiddiy ogohlantirishlar ---
+export type SaqlangZiddiyat = Ziddiyat & { id: string; vaqt: number; korildi?: boolean };
+
+export function ziddiyatlar(): SaqlangZiddiyat[] {
+  try {
+    const r = JSON.parse(localStorage.getItem(ZIDDIYATLAR) || '[]');
+    return Array.isArray(r) ? r : [];
+  } catch {
+    return [];
+  }
+}
+
+function ziddiyatlarniQoshish(yangi: Ziddiyat[]) {
+  if (!yangi.length) return;
+  const vaqt = Date.now();
+  const royxat = [...yangi.map((z, i) => ({ ...z, id: `${vaqt}_${i}`, vaqt })), ...ziddiyatlar()].slice(0, 30);
+  yozish(ZIDDIYATLAR, JSON.stringify(royxat));
+  window.dispatchEvent(new Event('zavod_ziddiyat'));
+}
+
+export function ziddiyatniKorildi(id: string) {
+  yozish(ZIDDIYATLAR, JSON.stringify(ziddiyatlar().map((z) => (z.id === id ? { ...z, korildi: true } : z))));
+  window.dispatchEvent(new Event('zavod_ziddiyat'));
+}
+
+export type Saqlanmagan = { vaqt: number; kalit: string; sabab: string; korildi?: boolean };
+
+export function saqlanmaganlar(): Saqlanmagan[] {
+  try {
+    const r = JSON.parse(localStorage.getItem(SAQLANMADI) || '[]');
+    return Array.isArray(r) ? r : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saqlanmaganlarniKorildi() {
+  yozish(SAQLANMADI, JSON.stringify(saqlanmaganlar().map((r) => ({ ...r, korildi: true })).slice(0, 30)));
+  window.dispatchEvent(new Event('zavod_saqlanmadi'));
+}
+
+function saqlanmadiDeb(kalit: string, sabab: string) {
+  yozish(SAQLANMADI, JSON.stringify([{ vaqt: Date.now(), kalit, sabab }, ...saqlanmaganlar()].slice(0, 30)));
+  window.dispatchEvent(new Event('zavod_saqlanmadi'));
+}
+
+// Kalitning odamga tushunarli nomi (ogohlantirishlar uchun)
+export function kalitNomi(kalit: string): string {
+  const oy = kalit.match(/(\d{4})-(\d{2})$/);
+  const oyM = oy ? ` (${oy[2]}.${oy[1]})` : '';
+  if (kalit.startsWith('zavod_eslatmalar_')) return `Avans daftari${oyM}`;
+  if (kalit.startsWith('zavod_ishchilar_')) return `Ishchilar ro'yxati${oyM}`;
+  if (kalit.startsWith('zavod_moshina_')) return 'Texnik xizmat';
+  if (kalit.startsWith('zavod_brak_')) return `Braklar sozlamasi${oyM}`;
+  return 'Sozlamalar';
+}
+
+async function xotiraniYuborish(kalit: string, urinish = 0): Promise<Natija> {
+  const qiymat = localStorage.getItem(kalit);
+  if (qiymat === null) return 'ok';
+  const asos = asosOl(kalit);
+  const malumot: Record<string, unknown> = { kalit, qiymat };
+  if (asos) malumot.asos = asos.v;
+  else if (localStorage.getItem(ASOS_TAYYOR)) malumot.asos = null;
+
+  const { natija, status, javob } = await postBatafsil('/api/xotira', malumot);
+  if (natija === 'ok') {
+    asosYoz(kalit, javob?.updatedAt, qiymat);
+    return 'ok';
+  }
+
+  // Bazada yangiroq nusxa — birlashtiramiz va qayta yuboramiz
+  if (status === 409 && javob && urinish < 3) {
+    const bazadagi = qiymatMatni(javob.qiymat);
+    const hozirgi = localStorage.getItem(kalit) ?? qiymat;
+    const r = birlashtir(kalit, asos?.q ?? null, hozirgi, bazadagi);
+    yozish(kalit, r.qiymat);
+    asosYoz(kalit, javob.updatedAt, bazadagi);
+    ziddiyatlarniQoshish(r.ziddiyatlar);
+    yangilandiDeb([kalit]);
+    if (r.qiymat === bazadagi) return 'ok';
+    return xotiraniYuborish(kalit, urinish + 1);
+  }
+
+  if (natija === 'rad') saqlanmadiDeb(kalit, String(javob?.xato || 'Server qabul qilmadi'));
+  return natija;
+}
+
+// Bazadan yangiliklarni olish. toliq=true — hammasi (ilova ochilganda), aks holda faqat oxirgi tekshiruvdan keyin o'zgarganlar
+let tortilmoqda = false;
+export async function bazadanTortish(toliq = false): Promise<void> {
+  if (tortilmoqda) return;
+  tortilmoqda = true;
+  try {
+    const dan = toliq ? null : localStorage.getItem(OXIRGI_TORTISH);
+    const res = await fetch(`/api/xotira${dan ? `?dan=${encodeURIComponent(dan)}` : ''}`, { cache: 'no-store' });
+    if (res.status === 401) {
+      sessiyaTugadi();
+      return;
+    }
+    if (!res.ok) return;
+    const malumotlar = await res.json();
+    if (!Array.isArray(malumotlar)) return;
+
+    let engKech = dan ? Date.parse(dan) : 0;
+    const ozgargan: string[] = [];
+    const yangiZiddiyatlar: Ziddiyat[] = [];
+
+    malumotlar.forEach((item: { kalit: string; qiymat: unknown; updatedAt?: string }) => {
+      const v = item.updatedAt ? Date.parse(item.updatedAt) : 0;
+      if (v > engKech) engKech = v;
+      if (!sinxronlanadimi(item.kalit)) return;
+      const kalit = item.kalit;
+      const bazadagi = qiymatMatni(item.qiymat);
+      const mahalliy = localStorage.getItem(kalit);
+
+      // Davomat: bazadagi + shu qurilmada hali yuborilmagan kataklar
+      if (kalit === DAVOMAT_KALITI) {
+        let obj: Record<string, unknown> = {};
+        try {
+          obj = JSON.parse(bazadagi) || {};
+        } catch {}
+        const birlashgan = JSON.stringify({ ...obj, ...davomatNavbati() });
+        if (mahalliy !== birlashgan) {
+          yozish(kalit, birlashgan);
+          ozgargan.push(kalit);
+        }
+        return;
+      }
+
+      // Shu qurilmada hali yuborilmagan o'zgarish bor — ustidan yozmaymiz, birlashtiramiz
+      if (yuborilmaganmi(kalit)) {
+        const asos = asosOl(kalit);
+        if (mahalliy !== null && mahalliy !== bazadagi && (!asos || Date.parse(asos.v) !== v)) {
+          const r = birlashtir(kalit, asos?.q ?? null, mahalliy, bazadagi);
+          if (r.qiymat !== mahalliy) {
+            yozish(kalit, r.qiymat);
+            ozgargan.push(kalit);
+          }
+          yangiZiddiyatlar.push(...r.ziddiyatlar);
+        }
+        asosYoz(kalit, item.updatedAt, bazadagi);
+        return;
+      }
+
+      if (mahalliy !== bazadagi) {
+        yozish(kalit, bazadagi);
+        ozgargan.push(kalit);
+      }
+      asosYoz(kalit, item.updatedAt, bazadagi);
+    });
+
+    if (toliq) yozish(ASOS_TAYYOR, '1');
+    // 5 soniya ustma-ust: shu paytda saqlangan narsa o'tkazib yuborilmasin (qayta ko'rish zarar qilmaydi)
+    if (engKech) yozish(OXIRGI_TORTISH, new Date(engKech - 5000).toISOString());
+    ziddiyatlarniQoshish(yangiZiddiyatlar);
+    yangilandiDeb(ozgargan);
+  } catch (err) {
+    console.error('Bazadan olishda xato:', err);
+  } finally {
+    tortilmoqda = false;
+  }
+}
+
+async function idniYuborish(id: string): Promise<Natija> {
+  if (id.startsWith('x:')) return xotiraniYuborish(id.slice(2));
   if (id.startsWith('s:')) {
     const [sana, smena] = id.slice(2).split('|');
     const matn = localStorage.getItem(smenaMahalliyKaliti(sana, smena));

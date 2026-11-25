@@ -9,6 +9,8 @@ import { toshkentOy, toshkentSana } from '@/lib/sana';
 import { oyYopilganmi } from '@/lib/oyQulfi';
 import { DAVOMAT_KALITI, davomatKatakYozish, davomatKutayotganlar } from '@/lib/sinxron';
 import { SahifaSarlavhasi, OyTanlash, Korsatkich, tasdiqla } from '@/components/ui';
+import ZiddiyatOgohlantirish from '@/components/ZiddiyatOgohlantirish';
+import { useXotiraYangilanishi } from '@/hooks/useXotiraYangilanishi';
 
 export default function IshchilarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
@@ -152,6 +154,27 @@ export default function IshchilarSahifasi() {
       eslatmalar: ''
     });
 
+  // Boshqa qurilmadan yangi ma'lumot kelsa — ekranni yangilaymiz (sahifa qayta yuklanmaydi)
+  useXotiraYangilanishi(
+    (k) =>
+      k === KALIT.ishchilar(tanlanganOy) ||
+      k === DAVOMAT_KALITI ||
+      k === KALIT.lavozimlar ||
+      k === KALIT.operatorQoshimcha ||
+      k === KALIT.sozlamaTarixi,
+    () => {
+      if (!tanlanganOy) return;
+      setIsModified(false);
+      setIshchilar(oyIshchilari(tanlanganOy));
+      setDavomat(oqish(DAVOMAT_KALITI, {}));
+      const lavozimlar = oqish<unknown>(KALIT.lavozimlar, null);
+      if (Array.isArray(lavozimlar)) setLavozimlarBazasi(lavozimlar);
+      const qoshimcha = localStorage.getItem(KALIT.operatorQoshimcha);
+      if (qoshimcha !== null) setOperatorQoshimchaPuli(Number(qoshimcha));
+      setSozlamaTarixi(oqish(KALIT.sozlamaTarixi, {}));
+    }
+  );
+
   const haqiqiyIshchilar = faolIshchilar(ishchilar);
   const umumiyJamiOylik = haqiqiyIshchilar.reduce((jami, ishchi) => jami + oylikniHisoblash(ishchi).hisoblangan, 0);
 
@@ -159,6 +182,8 @@ export default function IshchilarSahifasi() {
     <div>
       <SahifaSarlavhasi sarlavha="Ishchilar" amallar={<OyTanlash oy={tanlanganOy} ozgartirish={setTanlanganOy} />} />
 
+
+      <ZiddiyatOgohlantirish tur="xodim" kalit={KALIT.ishchilar(tanlanganOy)} />
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Korsatkich ixcham nomi="Ishchilar" qiymat={haqiqiyIshchilar.length} birlik="nafar" />

@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { avansJami, noaniqQatorlarSoni, pulFormat, type Ishchi } from '@/lib/hisob';
 import { toshkentSana } from '@/lib/sana';
 import { Oyna, Tugma, Ogohlantirish, Korsatkich, cn } from '@/components/ui';
+import ZiddiyatOgohlantirish from '@/components/ZiddiyatOgohlantirish';
+import { useXotiraYangilanishi } from '@/hooks/useXotiraYangilanishi';
 
 // AVANS DAFTARI (faqat admin) — sodda versiya.
 // Bitta Notes: ism yozilgan qatordagi summa shu ishchining avansi (oylik ham, bot ham shundan hisoblaydi).
@@ -23,6 +25,26 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [], yopiq = fals
   const [xato, setXato] = useState('');
 
   const xotiraKaliti = `zavod_eslatmalar_${tanlanganOy}`;
+
+  // Boshqa qurilmada yozilgan avans kelsa — darhol ko'rsatamiz. Birlashtirilgan matn shu qurilmadagi
+  // yozuvlarni ham o'z ichiga oladi; yozib turgan bo'lsangiz, kursor joyida qoladi.
+  useXotiraYangilanishi(
+    (k) => k === xotiraKaliti,
+    () => {
+      const ta = textareaRef.current;
+      const yozilmoqda = !!ta && document.activeElement === ta;
+      const bosh = ta?.selectionStart ?? 0;
+      const oxir = ta?.selectionEnd ?? 0;
+      setMatn(localStorage.getItem(xotiraKaliti) || '');
+      if (yozilmoqda && ta) {
+        requestAnimationFrame(() => {
+          try {
+            ta.setSelectionRange(bosh, oxir);
+          } catch {}
+        });
+      }
+    }
+  );
 
   useEffect(() => {
     setBugunSana(toshkentSana());
@@ -122,6 +144,8 @@ export default function AvansDaftari({ tanlanganOy, ishchilar = [], yopiq = fals
 
   return (
     <div className="space-y-4">
+      <ZiddiyatOgohlantirish tur="avans" kalit={xotiraKaliti} />
+
       <Korsatkich ixcham nomi="Oy jami avans" qiymat={pulFormat(oyJami)} birlik="so'm" />
 
       {noaniqSoni > 0 && (

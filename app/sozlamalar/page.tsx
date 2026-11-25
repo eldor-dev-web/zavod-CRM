@@ -6,6 +6,7 @@ import { oldingiOy, toshkentOy } from '@/lib/sana';
 import { MOSHINA_KALIT, moshinalarSoni } from '@/lib/moshina';
 import PinKodlar from '@/components/PinKodlar';
 import { SahifaSarlavhasi, Oyna, Maydon, Tugma, Ikonka, xabarBer, tasdiqla } from '@/components/ui';
+import { useXotiraYangilanishi } from '@/hooks/useXotiraYangilanishi';
 
 // Bo'lim: kichik sarlavha + guruh (qatorlar)
 function Bolim({ sarlavha, izoh, children }: { sarlavha: string; izoh?: string; children: React.ReactNode }) {
@@ -106,6 +107,24 @@ export default function SozlamalarSahifasi() {
       }
     }
   }, []);
+
+  // Boshqa qurilmada sozlama o'zgarsa — ekranni yangilaymiz
+  useXotiraYangilanishi(
+    (k) => [KALIT.lavozimlar, KALIT.operatorQoshimcha, KALIT.brakStavkalari, KALIT.brakMeyyori, MOSHINA_KALIT.soni].includes(k as never),
+    () => {
+      const q = localStorage.getItem(KALIT.operatorQoshimcha);
+      if (q !== null) setOperatorQoshimcha(Number(q));
+      const l = oqish<unknown>(KALIT.lavozimlar, null);
+      if (Array.isArray(l)) setLavozimlar(l);
+      const m = oqish<{ igna: number; lux: number } | null>(KALIT.brakMeyyori, null);
+      if (m) setBrakMeyyori(m);
+      const n = oqish<typeof brakStavkalari | null>(KALIT.brakStavkalari, null);
+      if (n) setBrakStavkalari(n);
+      if (document.activeElement?.getAttribute('aria-label') !== 'Moshinalar soni') {
+        setMoshinaSoni(String(moshinalarSoni(localStorage.getItem(MOSHINA_KALIT.soni))));
+      }
+    }
+  );
 
   // Har bir o'zgarish shu oyning sozlamasi sifatida tarixga yoziladi.
   // Shunda o'tgan oylarning oyligi eski stavka/narx bilan hisoblanishda davom etadi.

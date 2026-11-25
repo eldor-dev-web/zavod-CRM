@@ -8,6 +8,7 @@ import { toshkentOy } from '@/lib/sana';
 import { braklarniOlish } from '@/lib/braklarMahalliy';
 import type { BraklarNatijasi, TopilmaganOperator } from '@/lib/braklar';
 import { SahifaSarlavhasi, OyTanlash, Korsatkich, BoshHolat, Tugma, Ikonka, Ogohlantirish } from '@/components/ui';
+import { useXotiraYangilanishi } from '@/hooks/useXotiraYangilanishi';
 
 export default function BraklarSahifasi() {
   const [tanlanganOy, setTanlanganOy] = useState('');
@@ -66,6 +67,22 @@ export default function BraklarSahifasi() {
     await malumotlarniYuklash(tanlanganOy);
     setYangilanmoqda(false);
   };
+
+  // Boshqa qurilmada ishchilar, narx yoki me'yor o'zgarsa — qayta hisoblaymiz
+  useXotiraYangilanishi(
+    (k) =>
+      k === KALIT.ishchilar(tanlanganOy) ||
+      k === `zavod_brak_ismlar_${tanlanganOy}` ||
+      k === KALIT.brakStavkalari ||
+      k === KALIT.brakMeyyori ||
+      k === KALIT.sozlamaTarixi,
+    () => {
+      if (!tanlanganOy) return;
+      const narxlar = oqish<typeof brakStavkalari | null>(KALIT.brakStavkalari, null);
+      if (narxlar) setBrakStavkalari(narxlar);
+      malumotlarniYuklash(tanlanganOy);
+    }
+  );
 
   const kunlarMassivi = Array.from({ length: tanlanganOy ? oyKunlariSoni(tanlanganOy) : 30 }, (_, i) => i + 1);
 

@@ -21,6 +21,7 @@ import {
 import { oqish } from '@/lib/mahalliyXotira';
 import { toshkentVaqtMatni } from '@/lib/sana';
 import { SahifaSarlavhasi, Ogohlantirish, BoshHolat, Oyna, Maydon, Tugma, Ikonka, cn } from '@/components/ui';
+import { useXotiraYangilanishi } from '@/hooks/useXotiraYangilanishi';
 
 type Tur = 'kg' | 'kun';
 type Holat = LimitHolati['holat'];
@@ -134,6 +135,20 @@ export default function TexnikXizmatSahifasi() {
     setMexanikIsmi(localStorage.getItem('_mexanik_ismi') || '');
     hisobla(t, m);
   }, [hisobla]);
+
+  // Boshqa qurilmada limit yoki hisoblagich o'zgarsa — ekranni yangilaymiz
+  useXotiraYangilanishi(
+    (k) => k === MOSHINA_KALIT.limitlar || k === MOSHINA_KALIT.hisoblagich || k === MOSHINA_KALIT.soni,
+    () => {
+      const m = moshinalarSoni(localStorage.getItem(MOSHINA_KALIT.soni));
+      const t = oqish<HisoblagichTarixi>(MOSHINA_KALIT.hisoblagich, {});
+      const qaytaHisob = m !== maks || JSON.stringify(t) !== JSON.stringify(tarix);
+      setMaks(m);
+      setLimitlar(limitlarniOqish(oqish<unknown>(MOSHINA_KALIT.limitlar, {})));
+      setTarix(t);
+      if (qaytaHisob) hisobla(t, m);
+    }
+  );
 
   const boshlar = useMemo(() => hisoblagichBoshlari(tarix), [tarix]);
 

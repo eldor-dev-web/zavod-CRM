@@ -43,9 +43,13 @@ export async function GET(req: NextRequest) {
   try {
     // Smenalar o'z jadvalida (/api/smena), qurilma sozlamalari esa har bir kompyuterning o'zida turadi.
     // Ularni bu yerda yubormaymiz, aks holda yillar o'tib har sahifa ochilishi juda og'irlashadi.
+    // ?dan=<vaqt> — faqat shu vaqtdan keyin o'zgarganlar (har 45 soniyadagi tekshiruv uchun)
+    const danMatn = req.nextUrl.searchParams.get('dan');
+    const dan = danMatn ? new Date(danMatn) : null;
     const barchaMalumot = await prisma.tizimXotira.findMany({
       where: {
         AND: [
+          ...(dan && !isNaN(dan.getTime()) ? [{ updatedAt: { gt: dan } }] : []),
           { kalit: { notIn: [PIN_KALITI, 'zavod_telegram_bot_token', 'zavod_oxirgi_sana', 'zavod_oxirgi_smena', 'zavod_foydalanuvchi', 'zavod_bot_sorovlar', 'zavod_rad_etilganlar'] } },
           { NOT: { kalit: { startsWith: 'zavod_smena_' } } },
           // Smena hisobotlari qachon yuborilgani — faqat server uchun
@@ -68,7 +72,7 @@ export async function POST(req: NextRequest) {
   if (!rol) return NextResponse.json({ xato: 'Tizimga kiring' }, { status: 401 });
 
   try {
-    const { kalit, qiymat } = await req.json();
+    const { kalit, qiymat, asos } = await req.json();
     if (typeof kalit !== 'string' || !kalit.startsWith('zavod_')) {
       return NextResponse.json({ xato: 'Noto\'g\'ri kalit' }, { status: 400 });
     }
@@ -96,12 +100,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ xato: 'Bu ma\'lumotni o\'zgartirishga ruxsatingiz yo\'q' }, { status: 403 });
     }
 
-    const saqlandi = await prisma.tizimXotira.upsert({
-      where: { kalit },
-      update: { qiymat },
-      create: { kalit, qiymat }
-    });
+    // Versiyasiz (eski qurilma) — avvalgidek ustidan yoziladi
+    if (asos === undefined) {
+      const saqlandi = await prisma.tizimXotira.upsert({
+        where: { kalit },
+        update: { qiymat },
+        create: { kalit, qiymat }
+      });
+      return NextResponse.json(saqlandi, { status: 200 });
+    }
 
+    // Bazada yangiroq nusxa bo'lsa — ustidan yozilmaydi, qurilmaga bazadagi nusxa qaytariladi (u birlashtiradi)
+    const ziddiyat = async () => {
+      const bazada = await prisma.tizimXotira.findUnique({ where: { kalit } });
+      return NextResponse.json({ xato: 'ziddiyat', qiymat: bazada?.qiymat ?? null, updatedAt: bazada?.updatedAt ?? null }, { status: 409 });
+    };
+
+    if (asos === null) {
+      // Qurilma bu ma'lumotni bazada yo'q deb biladi
+      try {
+        const saqlandi = await prisma.tizimXotira.create({ data: { kalit, qiymat } });
+        return NextResponse.json(saqlandi, { status: 200 });
+      } catch {
+        return ziddiyat();
+      }
+    }
+
+    const asosVaqti = new Date(String(asos));
+    if (isNaN(asosVaqti.getTime())) return NextResponse.json({ xato: 'Versiya noto\'g\'ri' }, { status: 400 });
+    const yangilandi = await prisma.tizimXotira.updateMany({
+      where: { kalit, updatedAt: asosVaqti },
+      data: { qiymat, updatedAt: new Date() }
+    });
+    if (yangilandi.count === 0) {
+      const bormi = await prisma.tizimXotira.findUnique({ where: { kalit } });
+      if (bormi) return ziddiyat();
+      const saqlandi = await prisma.tizimXotira.create({ data: { kalit, qiymat } });
+      return NextResponse.json(saqlandi, { status: 200 });
+    }
+    const saqlandi = await prisma.tizimXotira.findUnique({ where: { kalit } });
     return NextResponse.json(saqlandi, { status: 200 });
   } catch (error) {
     console.error('Xotira POST xatosi:', error);

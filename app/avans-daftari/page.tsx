@@ -6,6 +6,7 @@ import { oyIshchilari } from '@/lib/mahalliyXotira';
 import { toshkentOy, toshkentSana } from '@/lib/sana';
 import { oyYopilganmi } from '@/lib/oyQulfi';
 import { SahifaSarlavhasi, OyTanlash } from '@/components/ui';
+import { useXotiraYangilanishi } from '@/hooks/useXotiraYangilanishi';
 
 // Avans daftari — faqat admin (proxy.ts va /api/xotira ham tekshiradi)
 export default function AvansDaftariSahifasi() {
@@ -23,6 +24,11 @@ export default function AvansDaftariSahifasi() {
     if (!oy) return;
     setIshchilar(faolIshchilar(oyIshchilari(oy)));
   }, [oy]);
+
+  useXotiraYangilanishi(
+    (k) => k === `zavod_ishchilar_${oy}`,
+    () => oy && setIshchilar(faolIshchilar(oyIshchilari(oy)))
+  );
 
   if (!oy) return null;
 

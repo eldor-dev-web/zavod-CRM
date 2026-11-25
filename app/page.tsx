@@ -6,6 +6,7 @@ import { oqish } from '@/lib/mahalliyXotira';
 import { sanagaKunQoshish, toshkentOy, toshkentSana } from '@/lib/sana';
 import { SahifaSarlavhasi, OyTanlash, Ikonka, cn, oyMatni } from '@/components/ui';
 import { braklarniOlish } from '@/lib/braklarMahalliy';
+import { useXotiraYangilanishi } from '@/hooks/useXotiraYangilanishi';
 
 // Grafik ostidagi oy harflari (telefonda joy tor)
 const OY_HARFI = ['Y', 'F', 'M', 'A', 'M', 'I', 'I', 'A', 'S', 'O', 'N', 'D'];
@@ -261,6 +262,19 @@ export default function AsosiyPanelSahifasi() {
     window.addEventListener('storage', yangilash);
     return () => window.removeEventListener('storage', yangilash);
   }, [malumotlarniAnalizQilish]);
+
+  // Boshqa qurilmadan yangi ma'lumot kelsa — ko'rsatkichlarni qayta hisoblaymiz
+  useXotiraYangilanishi(
+    (k) =>
+      k.startsWith('zavod_ishchilar_') ||
+      k === KALIT.davomat ||
+      k === KALIT.lavozimlar ||
+      k === KALIT.operatorQoshimcha ||
+      k === KALIT.brakStavkalari ||
+      k === KALIT.brakMeyyori ||
+      k === KALIT.sozlamaTarixi,
+    () => tanlanganOy && malumotlarniAnalizQilish(tanlanganOy)
+  );
 
   const oyniOzgartirish = (oy: string) => {
     setTanlanganOy(oy);
