@@ -37,14 +37,14 @@ export default function IshchilarSahifasi() {
 
     const saqlanganLavozimlar = localStorage.getItem('zavod_lavozimlar_bazasi');
     if (saqlanganLavozimlar) {
-      try { setLavozimlarBazasi(JSON.parse(saqlanganLavozimlar)); } catch (e) {}
+      try { setLavozimlarBazasi(JSON.parse(saqlanganLavozimlar)); } catch {}
     } else {
       setLavozimlarBazasi(STANDART_LAVOZIMLAR);
     }
 
     const saqlanganDavomat = localStorage.getItem('zavod_xodim_davomati');
     if (saqlanganDavomat) {
-      try { setDavomat(JSON.parse(saqlanganDavomat)); } catch (e) {}
+      try { setDavomat(JSON.parse(saqlanganDavomat)); } catch {}
     }
   }, []);
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { birXilSmena, hozirgiSmena, keyingiSmena, oldingiSmena, smenaQisqa, tahrirlashMumkinmi, tungimi, type SmenaNuqtasi } from '@/lib/smena';
+import { birXilSmena, hozirgiSmena, oldingiSmena, smenaQisqa, tahrirlashMumkinmi, type SmenaNuqtasi } from '@/lib/smena';
 import { hisobotIdsi, navbatdami, smenaIdsi, smenaMahalliyKaliti, yuborishYokiNavbat } from '@/lib/sinxron';
 import { NUQSON_TURLARI } from '@/lib/arxiv';
 import { moshinaNomi, moshinaRaqami } from '@/lib/moshina';
@@ -350,13 +350,6 @@ export function useRulonlar() {
     }
   };
 
-  // Aqlli smena tugmalari (faqat joriy smenada): DEN -> shu kunning NOCH, NOCH -> ertangi DEN
-  const smenaTanlash = async (qiymat: string): Promise<string | null> => {
-    const j = joriyRef.current;
-    if (!j || rejim !== 'joriy' || tungimi(qiymat) === tungimi(j.smena)) return null;
-    return joriyniAlmashtirish(keyingiSmena(j.sana, j.smena));
-  };
-
   // Eslatmadagi "O'tish": aniq smenaga (navbatdagi yoki dam olishdan keyin — hozirgi)
   const smenagaOtish = (maqsad: SmenaNuqtasi) => joriyniAlmashtirish(maqsad);
 
@@ -437,7 +430,7 @@ export function useRulonlar() {
   return {
     moshinalar, sana, setSana, smenaTuri, setSmenaTuri, kontrolchi, setKontrolchi, master, setMaster,
     moshinaMaqotlari, moshinaQoshish, jadvalniOchirish, handleMoshinaDataChange, oldingiSmenadanKochirish,
-    joriy, rejim, smenaTanlash, smenagaOtish, tugaganniOchish, joriygaQaytish,
+    joriy, rejim, smenagaOtish, tugaganniOchish, joriygaQaytish,
     isLoaded 
   };
 }

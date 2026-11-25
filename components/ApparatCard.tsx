@@ -131,6 +131,9 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
         setRulonlar(yangiRulonlar);
       }
     }
+    // Faqat moshina ID si o'zgarganda (boshqa smena yoki boshqa qurilmadan yangi ma'lumot — server har saqlashda
+    // yangi ID beradi). Har yozilgan harfda emas, aks holda foydalanuvchi yozayotgan narsa ustidan yozilib ketadi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData?.id]);
 
   // Ma'lumot o'zgarganda tepaga (useRulonlar ga) uzatish
@@ -138,6 +141,8 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
     if (onDataChange) {
       onDataChange({ id, ...info, rulonlar });
     }
+    // Faqat karta ichidagi ma'lumot o'zgarganda tepaga uzatiladi (id va onDataChange har chizishda yangi bo'ladi)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [info, rulonlar]);
 
   const operatorlarniYuklash = () => {
@@ -152,6 +157,8 @@ export default function ApparatCard({ id, onDataChange, initialData, readOnly, j
 
   useEffect(() => {
     operatorlarniYuklash();
+    // Sana (oy) o'zgarganda operatorlar ro'yxati qayta o'qiladi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joriySana]);
 
   useEffect(() => {

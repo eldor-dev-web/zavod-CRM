@@ -9,7 +9,6 @@ import {
   MOSHINA_KALIT,
   moshinaNomi,
   moshinalarSoni,
-  OGOHLANTIRISH_FOIZI,
   turKgmi,
   turKunmi,
   type HisoblagichTarixi,
@@ -63,8 +62,6 @@ function holatMatni(h: LimitHolati, tur: Tur) {
   if (h.holat === 'yaxshi') return `${sonFormat(h.qoldi)} ${birlik(tur)} qoldi`;
   return 'limit qo\'yilmagan';
 }
-
-const ogohlantirishmi = (h: LimitHolati) => h.holat === 'yaqin' || h.holat === 'oshdi';
 
 const turNomi = (y: HisoblagichYozuvi) => (!y.tur || y.tur === 'ikkalasi' ? 'Kg va kun' : y.tur === 'kg' ? 'Kg' : 'Kun');
 

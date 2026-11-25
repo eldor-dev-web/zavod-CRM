@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ishchiOyligi, faolIshchilar, KALIT, oySozlamasi, STANDART_BRAK_STAVKALARI, STANDART_LAVOZIMLAR, STANDART_OPERATOR_QOSHIMCHA } from '@/lib/hisob';
-import { oqish } from '@/lib/mahalliyXotira';
+import { oqish, oyIshchilari } from '@/lib/mahalliyXotira';
 import { sanagaKunQoshish, toshkentOy, toshkentSana } from '@/lib/sana';
 import { SahifaSarlavhasi, OyTanlash, Ikonka, cn, oyMatni } from '@/components/ui';
 import { braklarniOlish } from '@/lib/braklarMahalliy';
@@ -116,7 +116,8 @@ export default function AsosiyPanelSahifasi() {
     if (!oy) return;
 
     // Oylik va jarima umumiy hisob faylidan (Ishchilar sahifasi va bot bilan bir xil)
-    const ishchilar = faolIshchilar(oqish(KALIT.ishchilar(oy), []));
+    // Yangi oy ro'yxati hali bo'lmasa — o'tgan oy xodimlari (Ishchilar sahifasi bilan bir xil)
+    const ishchilar = faolIshchilar(oyIshchilari(oy));
     const saqlanganQoshimcha = localStorage.getItem(KALIT.operatorQoshimcha);
     // Tanlangan oyda amal qilgan sozlamalar (o'tgan oylar eski stavka bilan)
     const oySozlama = oySozlamasi(
