@@ -1,14 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sorovRoli } from '@/lib/sessiya';
 import { joriySmenaYozuvi } from '@/lib/joriySmena';
 import { birXilSmena, hozirgiSmena, JORIY_SMENA_KALITI, keyingiSmena, smenaNomi, smenaTartibi } from '@/lib/smena';
 import { toshkentVaqtMatni } from '@/lib/sana';
+import { kechiktirilganHisobotniYuborish } from '@/lib/hisobot';
 
 // Joriy smenani olish (hamma rollar)
 export async function GET(req: NextRequest) {
   if (!(await sorovRoli(req))) return NextResponse.json({ xato: 'Tizimga kiring' }, { status: 401 });
-  const { joriy } = await joriySmenaYozuvi();
+  const { joriy, updatedAt } = await joriySmenaYozuvi();
+  // Javob qaytgandan keyin: tugagan smena hisobotining vaqti kelgan bo'lsa (3 soat), Telegramga yuboriladi
+  after(async () => {
+    try {
+      await kechiktirilganHisobotniYuborish(joriy, updatedAt);
+    } catch (e) {
+      console.error('Kechiktirilgan hisobot xatosi:', e);
+    }
+  });
   return NextResponse.json({ joriy });
 }
 

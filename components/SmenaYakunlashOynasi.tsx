@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { tungimi, type SmenaNuqtasi } from '@/lib/smena';
-import { Belgi, Ikonka, Oyna, Tugma } from '@/components/ui';
+import { Belgi, Ikonka, Ogohlantirish, Oyna, Tugma } from '@/components/ui';
 
 export type SmenaXulosasi = { moshina: number; rulon: number; kg: number };
 
@@ -16,12 +16,14 @@ export default function SmenaYakunlashOynasi({
   joriy,
   keyingi,
   xulosa,
+  kamchiliklar = [],
   tasdiqlash,
   yopish
 }: {
   joriy: SmenaNuqtasi;
   keyingi: SmenaNuqtasi;
   xulosa: SmenaXulosasi;
+  kamchiliklar?: string[]; // to'ldirilmagan joylar (ogohlantirish — yakunlashga to'sqinlik qilmaydi)
   tasdiqlash: () => Promise<string | null>;
   yopish: () => void;
 }) {
@@ -47,12 +49,25 @@ export default function SmenaYakunlashOynasi({
       sarlavha={`${sanaQisqa(joriy.sana)} ${tungimi(joriy.smena) ? 'NOCH' : 'DEN'} smenasini yakunlaysizmi?`}
       amallar={
         <>
-          <Tugma disabled={bajarilmoqda} onClick={yopish}>
-            Bekor
-          </Tugma>
-          <Tugma tur="asosiy" yuklanmoqda={bajarilmoqda} onClick={ha}>
-            {bajarilmoqda ? 'Bajarilmoqda...' : 'Ha, yakunlash'}
-          </Tugma>
+          {kamchiliklar.length > 0 ? (
+            <>
+              <Tugma tur="asosiy" disabled={bajarilmoqda} onClick={yopish}>
+                Ortga, to&apos;ldiraman
+              </Tugma>
+              <Tugma yuklanmoqda={bajarilmoqda} onClick={ha}>
+                {bajarilmoqda ? 'Bajarilmoqda...' : 'Baribir yakunlash'}
+              </Tugma>
+            </>
+          ) : (
+            <>
+              <Tugma disabled={bajarilmoqda} onClick={yopish}>
+                Bekor
+              </Tugma>
+              <Tugma tur="asosiy" yuklanmoqda={bajarilmoqda} onClick={ha}>
+                {bajarilmoqda ? 'Bajarilmoqda...' : 'Ha, yakunlash'}
+              </Tugma>
+            </>
+          )}
         </>
       }
     >
@@ -66,11 +81,22 @@ export default function SmenaYakunlashOynasi({
             </p>
             <p className="mt-1 flex items-center gap-1.5 text-matn-2">
               <Ikonka nom="hujjat" className="w-4 h-4" />
-              Hisobot Telegram kanalga yuboriladi
+              Hisobot 3 soatdan keyin Telegram kanalga yuboriladi
             </p>
           </>
         )}
       </div>
+      {kamchiliklar.length > 0 && (
+        <Ogohlantirish tur="diqqat" ikonka="ogohlantirish" className="mt-4">
+          <p>To&apos;ldirilmagan joylar bor:</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4 font-normal">
+            {kamchiliklar.slice(0, 10).map((k, i) => (
+              <li key={i}>{k}</li>
+            ))}
+            {kamchiliklar.length > 10 && <li>va yana {kamchiliklar.length - 10} ta</li>}
+          </ul>
+        </Ogohlantirish>
+      )}
       <p className="mt-4 flex items-center gap-2 font-semibold text-matn-2">
         Keyingi smena:
         <Belgi tur={tungimi(keyingi.smena) ? 'noch' : 'den'}>

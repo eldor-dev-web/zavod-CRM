@@ -38,6 +38,41 @@ export default function RulonlarSahifasi() {
     });
     return { moshina, rulon, kg };
   };
+  // Smenani yakunlashdan oldin: to'ldirilmay qolgan joylar (ogohlantirish uchun)
+  const smenaKamchiliklari = (): string[] => {
+    if (moshinalar.length === 0) return []; // bo'sh smena (masalan, dam olish) — ogohlantirish kerak emas
+    const natija: string[] = [];
+    const bosh = (v: unknown) => String(v ?? '').trim() === '';
+    if (bosh(master)) natija.push('Master yozilmagan');
+    if (bosh(kontrolchi)) natija.push('Kontrolchi yozilmagan');
+    const MAYDONLAR: [string, string][] = [
+      ['raqam', 'MK raqami'],
+      ['operator', 'operator'],
+      ['talimoti', 'Talimoti'],
+      ['brend', 'Brend'],
+      ['ip', 'IP'],
+      ['lot', 'Lot']
+    ];
+    moshinalar.forEach((m: any, i: number) => {
+      const d = moshinaMaqotlari[m.id] || {};
+      const nomi = bosh(d.raqam) ? `${i + 1}-moshina` : String(d.raqam).trim();
+      const rulonlar: any[] = Array.isArray(d.rulonlar) ? d.rulonlar : [];
+      const kgBor = rulonlar.some((r) => !bosh(r?.kg));
+      const yozilmagan = MAYDONLAR.filter(([k]) => bosh(d[k])).map(([, n]) => n);
+      if (!kgBor && yozilmagan.length === MAYDONLAR.length) {
+        natija.push(`${nomi}: bo'sh moshina — kerak bo'lmasa o'chiring`);
+        return;
+      }
+      if (yozilmagan.length) natija.push(`${nomi}: ${yozilmagan.join(', ')} yozilmagan`);
+      if (!kgBor) natija.push(`${nomi}: birorta rulon kg yozilmagan`);
+      rulonlar.forEach((r, j) => {
+        const nuqsonBor = Object.values(r?.nuqsonlar || {}).some((v) => !bosh(v));
+        if (nuqsonBor && bosh(r?.kg)) natija.push(`${nomi}: ${j + 1}-rulonda nuqson bor, lekin kg yozilmagan`);
+      });
+    });
+    return natija;
+  };
+
   const qisqaNom = (s: { sana: string; smena: string }) =>
     `${s.sana.split('-').reverse().slice(0, 2).join('.')} ${tungimi(s.smena) ? 'NOCH' : 'DEN'}`;
 
@@ -204,6 +239,7 @@ export default function RulonlarSahifasi() {
           joriy={joriy}
           keyingi={yakunlashMaqsadi}
           xulosa={xulosa}
+          kamchiliklar={smenaKamchiliklari()}
           tasdiqlash={() => smenagaOtish(yakunlashMaqsadi)}
           yopish={() => setYakunlashMaqsadi(null)}
         />

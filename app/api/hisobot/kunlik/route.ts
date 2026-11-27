@@ -6,6 +6,7 @@ import { sanagaKunQoshish, toshkentSana } from '@/lib/sana';
 // Har kuni ertalab Vercel o'zi chaqiradi (vercel.json -> crons).
 // Smena almashtirilmay qolgan bo'lsa (masalan, dam olish oldidan), oxirgi 2 kunning
 // to'ldirilgan, lekin yuborilmagan smenalarini yuboradi. Yuborilganlari qayta ketmaydi.
+// Hozirgina tugagan smena (almashganiga 3 soat bo'lmagan) bu yerda yuborilmaydi — 3 soatdan keyin ketadi.
 export async function GET(req: NextRequest) {
   const kalit = process.env.CRON_SECRET;
   if (!kalit || req.headers.get('authorization') !== `Bearer ${kalit}`) {

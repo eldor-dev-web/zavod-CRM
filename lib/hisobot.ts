@@ -4,7 +4,8 @@
 // Qoidalar:
 //  - bo'sh smena (birorta rulon kiritilmagan) yuborilmaydi;
 //  - bir smena bir marta yuboriladi; keyin ma'lumoti o'zgarsa "Yangilangan" bo'lib qayta yuboriladi;
-//  - bir vaqtda ikki so'rov kelsa ham faqat bittasi yuboradi.
+//  - bir vaqtda ikki so'rov kelsa ham faqat bittasi yuboradi;
+//  - tugagan smena hisoboti smena almashgandan 3 SOAT KEYIN yuboriladi (shu vaqt ichidagi tuzatishlar ham kirsin).
 // ============================================================
 
 import { createHash } from 'crypto';
@@ -12,14 +13,16 @@ import prisma from '@/lib/prisma';
 import { moshinaNomi, moshinaRaqami } from '@/lib/moshina';
 import { PdfSahifa, pdfYasash, qisqartirish, pdfMatn } from '@/lib/pdf';
 import { toshkentVaqtMatni } from '@/lib/sana';
-import { smenaQisqa, tungimi } from '@/lib/smena';
+import { birXilSmena, oldingiSmena, smenaNomi, smenaQisqa, smenaTartibi, tungimi, type SmenaNuqtasi } from '@/lib/smena';
+import { joriySmenaYozuvi } from '@/lib/joriySmena';
 
 export const HISOBOT_PREFIKSI = 'zavod_hisobot_'; // har smena uchun: zavod_hisobot_2026-11-21_DEN
+export const HISOBOT_KECHIKISHI_MS = 3 * 60 * 60 * 1000; // smena almashgandan keyin 3 soat kutiladi
 
 type Qator = { moshina: string; operator: string; rulon: number; kg: number; tartib: number };
 export type HisobotNatijasi =
   | { holat: 'yuborildi'; yangilangan: boolean }
-  | { holat: 'bosh' | 'takror' | 'band' | 'topilmadi' | 'sozlanmagan' }
+  | { holat: 'bosh' | 'takror' | 'band' | 'topilmadi' | 'sozlanmagan' | 'kutilmoqda' }
   | { holat: 'xato'; sabab: string };
 
 const sanaKorinishi = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}`;
@@ -59,7 +62,7 @@ async function smenaQatorlari(sana: string, smenaTuri: string) {
     .filter((q) => q.rulon > 0)
     .sort((a, b) => a.tartib - b.tartib);
 
-  return { master: (smena.master || '').trim(), qatorlar };
+  return { master: (smena.master || '').trim(), kontrolchi: (smena.kontrolchi || '').trim(), qatorlar };
 }
 
 export function pdfChizish(o: { sana: string; smena: string; master: string; qatorlar: Qator[]; yangilangan: boolean }): Uint8Array {
@@ -141,17 +144,31 @@ async function telegramgaYuborish(token: string, chatId: string, pdf: Uint8Array
   if (!javob.ok) throw new Error(`Telegram: ${javob.status} ${(await javob.text().catch(() => '')).slice(0, 200)}`);
 }
 
+// Smena hisobotini yuborish vaqti keldimi:
+//  - hali tugamagan (joriy yoki keyingi) smena — yo'q;
+//  - hozirgina tugagan smena — almashganiga 3 soat bo'lgan bo'lsa;
+//  - undan eski smenalar — ha.
+async function yuborishVaqtimi(sana: string, smenaTuri: string): Promise<boolean> {
+  const { joriy, updatedAt } = await joriySmenaYozuvi();
+  const s = { sana, smena: smenaNomi(smenaTuri) };
+  if (smenaTartibi(s) >= smenaTartibi(joriy)) return false;
+  if (birXilSmena(s, oldingiSmena(joriy.sana, joriy.smena))) return Date.now() - updatedAt.getTime() >= HISOBOT_KECHIKISHI_MS;
+  return true;
+}
+
 // Asosiy funksiya: smena hisobotini (kerak bo'lsa) kanalga yuborish
 export async function smenaHisobotiniYuborish(sana: string, smenaTuri: string): Promise<HisobotNatijasi> {
   const chatId = (process.env.TELEGRAM_HISOBOT_CHAT_ID || '').trim();
   const token = await botTokeni();
   if (!chatId || !token) return { holat: 'sozlanmagan' };
+  if (!(await yuborishVaqtimi(sana, smenaTuri))) return { holat: 'kutilmoqda' };
 
   const malumot = await smenaQatorlari(sana, smenaTuri);
   if (!malumot) return { holat: 'topilmadi' };
   if (malumot.qatorlar.length === 0) return { holat: 'bosh' };
 
-  const iz = createHash('sha256').update(JSON.stringify(malumot)).digest('hex').slice(0, 24);
+  // Iz eski ko'rinishda (kontrolchisiz): aks holda avval yuborilgan smenalar "Yangilangan" bo'lib qayta ketadi
+  const iz = createHash('sha256').update(JSON.stringify({ master: malumot.master, qatorlar: malumot.qatorlar })).digest('hex').slice(0, 24);
   const kalit = `${HISOBOT_PREFIKSI}${sana}_${smenaQisqa(smenaTuri)}`;
   const mavjud = await prisma.tizimXotira.findUnique({ where: { kalit } });
   const eski = (mavjud?.qiymat ?? null) as { iz?: string; holat?: string } | null;
@@ -180,6 +197,7 @@ export async function smenaHisobotiniYuborish(sana: string, smenaTuri: string): 
       `${qisqa === 'DEN' ? '☀️' : '🌙'} <b>${sanaKorinishi(sana)} · ${qisqa}</b>\n` +
       `${kgFormat(jamiKg)} kg · ${sonFormat(jamiRulon)} rulon · ${malumot.qatorlar.length} moshina` +
       (malumot.master ? `\nMaster: ${malumot.master.replace(/[<>&]/g, '')}` : '') +
+      (malumot.kontrolchi ? `\nKontrolchi: ${malumot.kontrolchi.replace(/[<>&]/g, '')}` : '') +
       (yangilangan ? '\n🔄 Yangilangan' : '');
     await telegramgaYuborish(token, chatId, pdf, `${sanaKorinishi(sana)} ${qisqa}${yangilangan ? ' (yangilangan)' : ''}.pdf`, izoh);
     await prisma.tizimXotira.update({ where: { kalit }, data: { qiymat: { iz, holat: 'yuborildi', vaqt: toshkentVaqtMatni() } } });
@@ -192,4 +210,16 @@ export async function smenaHisobotiniYuborish(sana: string, smenaTuri: string): 
     } catch {}
     return { holat: 'xato', sabab: e instanceof Error ? e.message : String(e) };
   }
+}
+
+// Tugagan smenaning hisobotini 3 soatdan keyin yuborish. Rulonlar sahifasi joriy smenani har 20 soniyada
+// so'raydi — server shu payt tekshiradi (Vercel bepul tarifida soatlik vazifa yo'q). Hech qaysi qurilma
+// ochiq bo'lmasa, ertalabki kunlik tekshiruv yuboradi. Faqat birinchi yuborish shu yerda; keyingi
+// tuzatishlar ("Yangilangan") kunlik tekshiruvda ketadi — har 20 soniyada butun smenani o'qimaslik uchun.
+export async function kechiktirilganHisobotniYuborish(joriy: SmenaNuqtasi, updatedAt: Date): Promise<void> {
+  if (Date.now() - updatedAt.getTime() < HISOBOT_KECHIKISHI_MS) return;
+  const t = oldingiSmena(joriy.sana, joriy.smena);
+  const belgi = await prisma.tizimXotira.findUnique({ where: { kalit: `${HISOBOT_PREFIKSI}${t.sana}_${smenaQisqa(t.smena)}` } });
+  if (belgi) return; // allaqachon yuborilgan yoki hozir yuborilmoqda
+  await smenaHisobotiniYuborish(t.sana, t.smena);
 }
