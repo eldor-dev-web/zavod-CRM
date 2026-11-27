@@ -212,14 +212,15 @@ export async function smenaHisobotiniYuborish(sana: string, smenaTuri: string): 
   }
 }
 
-// Tugagan smenaning hisobotini 3 soatdan keyin yuborish. Rulonlar sahifasi joriy smenani har 20 soniyada
-// so'raydi — server shu payt tekshiradi (Vercel bepul tarifida soatlik vazifa yo'q). Hech qaysi qurilma
-// ochiq bo'lmasa, ertalabki kunlik tekshiruv yuboradi. Faqat birinchi yuborish shu yerda; keyingi
-// tuzatishlar ("Yangilangan") kunlik tekshiruvda ketadi — har 20 soniyada butun smenani o'qimaslik uchun.
-export async function kechiktirilganHisobotniYuborish(joriy: SmenaNuqtasi, updatedAt: Date): Promise<void> {
-  if (Date.now() - updatedAt.getTime() < HISOBOT_KECHIKISHI_MS) return;
+// Tugagan smena hisobotini birinchi marta yuborish — smena almashganidan 3 soat o'tgach.
+// Chaqiruvchilar: tashqi budilnik (/api/hisobot/tekshir, har 15 daqiqada) va Rulonlar sahifasi (/api/smena/joriy).
+// Ikkalasi bir vaqtda chaqirsa ham PDF ikki marta ketmaydi (smenaHisobotiniYuborish ichida "band qilish" qulfi bor).
+// "Yangilangan" (keyingi tuzatishlar) bu yerda yuborilmaydi — ular kunlik 08:00 tekshiruvda ketadi.
+export type KechiktirilganNatija = HisobotNatijasi | { holat: 'erta' | 'oldin_yuborilgan' };
+export async function kechiktirilganHisobotniYuborish(joriy: SmenaNuqtasi, updatedAt: Date): Promise<KechiktirilganNatija> {
+  if (Date.now() - updatedAt.getTime() < HISOBOT_KECHIKISHI_MS) return { holat: 'erta' };
   const t = oldingiSmena(joriy.sana, joriy.smena);
   const belgi = await prisma.tizimXotira.findUnique({ where: { kalit: `${HISOBOT_PREFIKSI}${t.sana}_${smenaQisqa(t.smena)}` } });
-  if (belgi) return; // allaqachon yuborilgan yoki hozir yuborilmoqda
-  await smenaHisobotiniYuborish(t.sana, t.smena);
+  if (belgi) return { holat: 'oldin_yuborilgan' }; // allaqachon yuborilgan yoki hozir yuborilmoqda
+  return smenaHisobotiniYuborish(t.sana, t.smena);
 }
